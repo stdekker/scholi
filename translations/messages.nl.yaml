@@ -13,15 +13,24 @@ game:
         table: Tafel van %table%
         tafels:
             title: De tafel van %table%
-            intro: Klik op een bubbel en typ het antwoord.
+            intro: Klik op een bubbel en typ het antwoord. Lukt het binnen een minuut?
             sum_label: '%multiplier% keer %table%'
             answer: Jouw antwoord
             correct: 'Goed zo! %multiplier% × %table% = %answer%'
             try_again: Bijna! Probeer het nog eens.
             remaining: 'Bubbels over: %count%'
-            done: Super gedaan! Je hebt alle bubbels van de tafel van %table% geknapt!
+            done: Super gedaan! Je hebt alle bubbels van de tafel van %table% binnen een minuut geknapt!
+            done_late: Alle bubbels zijn geknapt. Iets sneller de volgende keer!
             again: Nog een keer
             other_table: Andere tafel
+            ready:
+                title: Ben je er klaar voor?
+                text: Knap alle bubbels binnen de tijd.
+                button: Ik ben er klaar voor!
+                go: Start!
+            timer:
+                label: Tijd
+                up: De tijd is om! Maak de bubbels rustig af.
             keypad:
                 erase: Wissen
                 check: OK

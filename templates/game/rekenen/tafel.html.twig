@@ -17,11 +17,38 @@
         data-tafels-correct-value="{{ 'game.rekenen.tafels.correct'|trans }}"
         data-tafels-try-again-value="{{ 'game.rekenen.tafels.try_again'|trans }}"
         data-tafels-remaining-value="{{ 'game.rekenen.tafels.remaining'|trans }}"
+        data-tafels-time-up-value="{{ 'game.rekenen.tafels.timer.up'|trans }}"
+        data-tafels-go-value="{{ 'game.rekenen.tafels.ready.go'|trans }}"
+        data-action="keydown@window->tafels#typeAnywhere"
     >
+        {# Shown before every round; the clock starts after the 3-2-1 countdown. #}
+        <dialog class="ready-dialog" aria-labelledby="ready-dialog-title" closedby="none"
+            data-tafels-target="readyDialog"
+            data-action="cancel->tafels#preventCancel close->tafels#readyClosed">
+            <h2 class="ready-dialog__title" id="ready-dialog-title">{{ 'game.rekenen.tafels.ready.title'|trans }}</h2>
+            <p class="ready-dialog__time">
+                <span class="ready-dialog__time-label">{{ 'game.rekenen.tafels.timer.label'|trans }}</span>
+                <span data-tafels-target="readyTime">1:00</span>
+            </p>
+            <p>{{ 'game.rekenen.tafels.ready.text'|trans }}</p>
+            <button type="button" class="action-button ready-dialog__button"
+                data-tafels-target="readyButton" data-action="tafels#ready">
+                {{ 'game.rekenen.tafels.ready.button'|trans }}
+            </button>
+            <p class="ready-dialog__countdown" role="status" data-tafels-target="countdown"></p>
+        </dialog>
+
         <header class="bubble-game__header">
             <h1>{{ title }}</h1>
             <p>{{ 'game.rekenen.tafels.intro'|trans }}</p>
-            <p class="bubble-game__progress" data-tafels-target="progress"></p>
+            <div class="bubble-game__meta">
+                <p class="bubble-game__progress" data-tafels-target="progress"></p>
+                <div class="round-timer" data-tafels-target="timer">
+                    <span class="round-timer__label">{{ 'game.rekenen.tafels.timer.label'|trans }}</span>
+                    <span class="round-timer__time" role="timer" data-tafels-target="time">1:00</span>
+                    <span class="round-timer__bar" aria-hidden="true"><span class="round-timer__fill"></span></span>
+                </div>
+            </div>
         </header>
 
         <ul class="bubble-field" data-tafels-target="field"></ul>
@@ -39,20 +66,24 @@
             </li>
         </template>
 
-        <div class="keypad" data-tafels-target="keypad" hidden>
-            {% for digit in [1, 2, 3, 4, 5, 6, 7, 8, 9] %}
-                <button type="button" class="keypad__key" data-action="tafels#press" data-tafels-digit-param="{{ digit }}">{{ digit }}</button>
-            {% endfor %}
-            <button type="button" class="keypad__key keypad__key--erase" data-action="tafels#erase"
-                aria-label="{{ 'game.rekenen.tafels.keypad.erase'|trans }}">⌫</button>
-            <button type="button" class="keypad__key" data-action="tafels#press" data-tafels-digit-param="0">0</button>
-            <button type="button" class="keypad__key keypad__key--check" data-action="tafels#submit">{{ 'game.rekenen.tafels.keypad.check'|trans }}</button>
+        {# Sticky dock: feedback and keypad stay in view while answering. #}
+        <div class="bubble-game__dock">
+            <p class="bubble-game__status" role="status" data-tafels-target="status"></p>
+
+            <div class="keypad" data-tafels-target="keypad" hidden>
+                {% for digit in [1, 2, 3, 4, 5, 6, 7, 8, 9] %}
+                    <button type="button" class="keypad__key" data-action="tafels#press" data-tafels-digit-param="{{ digit }}">{{ digit }}</button>
+                {% endfor %}
+                <button type="button" class="keypad__key keypad__key--erase" data-action="tafels#erase"
+                    aria-label="{{ 'game.rekenen.tafels.keypad.erase'|trans }}">⌫</button>
+                <button type="button" class="keypad__key" data-action="tafels#press" data-tafels-digit-param="0">0</button>
+                <button type="button" class="keypad__key keypad__key--check" data-action="tafels#submit">{{ 'game.rekenen.tafels.keypad.check'|trans }}</button>
+            </div>
         </div>
 
-        <p class="bubble-game__status" role="status" data-tafels-target="status"></p>
-
         <div class="round-complete" data-tafels-target="complete" hidden>
-            <p class="round-complete__message">{{ 'game.rekenen.tafels.done'|trans({'%table%': table}) }}</p>
+            <p class="round-complete__message" data-tafels-target="passedMessage">{{ 'game.rekenen.tafels.done'|trans({'%table%': table}) }}</p>
+            <p class="round-complete__message" data-tafels-target="lateMessage" hidden>{{ 'game.rekenen.tafels.done_late'|trans({'%table%': table}) }}</p>
             <div class="round-complete__actions">
                 <button type="button" class="action-button" data-action="tafels#restart" data-tafels-target="restart">
                     {{ 'game.rekenen.tafels.again'|trans }}

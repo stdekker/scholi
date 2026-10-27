@@ -5,10 +5,16 @@ import {
     createRound,
     findTask,
     format,
+    formatTime,
+    isPassed,
     isRoundComplete,
+    isTimeUp,
     remainingTasks,
     removeLastDigit,
     solveTask,
+    startTimer,
+    TIME_LIMIT_MS,
+    timeLeft,
 } from '../../../../assets/games/rekenen/tafels.js';
 
 describe('createRound', () => {
@@ -60,7 +66,7 @@ describe('checkAnswer', () => {
 describe('round progress', () => {
     it('tracks solved tasks without modifying the original round', () => {
         const round = createRound(3);
-        const solved = solveTask(round, 4);
+        const solved = solveTask(round, 4, 1000);
 
         expect(findTask(solved, 4)?.solved).toBe(true);
         expect(findTask(round, 4)?.solved).toBe(false);
@@ -71,11 +77,75 @@ describe('round progress', () => {
     it('is complete when every task is solved', () => {
         let round = createRound(5);
         for (const task of round.tasks) {
-            round = solveTask(round, task.id);
+            round = solveTask(round, task.id, 1000);
         }
 
         expect(remainingTasks(round)).toHaveLength(0);
         expect(isRoundComplete(round)).toBe(true);
+    });
+});
+
+describe('timer', () => {
+    const solveAll = (round, now) =>
+        round.tasks.reduce((current, task) => solveTask(current, task.id, now), round);
+
+    it('has the full minute before it starts', () => {
+        const round = createRound(4);
+
+        expect(TIME_LIMIT_MS).toBe(60_000);
+        expect(round.startedAt).toBeNull();
+        expect(timeLeft(round, 999_999)).toBe(TIME_LIMIT_MS);
+        expect(isTimeUp(round, 999_999)).toBe(false);
+    });
+
+    it('counts down from the first start only', () => {
+        const round = startTimer(startTimer(createRound(4), 1_000), 5_000);
+
+        expect(round.startedAt).toBe(1_000);
+        expect(timeLeft(round, 21_000)).toBe(40_000);
+        expect(isTimeUp(round, 60_999)).toBe(false);
+        expect(isTimeUp(round, 61_000)).toBe(true);
+        expect(timeLeft(round, 90_000)).toBe(0);
+    });
+
+    it('passes when everything is solved within the minute', () => {
+        const round = solveAll(startTimer(createRound(7), 1_000), 61_000);
+
+        expect(round.finishedAt).toBe(61_000);
+        expect(isPassed(round)).toBe(true);
+        expect(timeLeft(round, 120_000)).toBe(0);
+    });
+
+    it('does not pass when finished after the minute, but the round is complete', () => {
+        const round = solveAll(startTimer(createRound(7), 1_000), 61_001);
+
+        expect(isRoundComplete(round)).toBe(true);
+        expect(isPassed(round)).toBe(false);
+    });
+
+    it('stops the clock when the round is finished', () => {
+        const round = solveAll(startTimer(createRound(7), 0), 45_000);
+
+        expect(timeLeft(round, 200_000)).toBe(15_000);
+    });
+
+    it('only records finishedAt for the last task', () => {
+        const round = solveTask(startTimer(createRound(7), 0), 1, 5_000);
+
+        expect(round.finishedAt).toBeNull();
+        expect(isPassed(round)).toBe(false);
+    });
+
+    it.each([
+        [60_000, '1:00'],
+        [59_001, '1:00'],
+        [59_000, '0:59'],
+        [9_500, '0:10'],
+        [1, '0:01'],
+        [0, '0:00'],
+        [-500, '0:00'],
+    ])('formats %i ms as %s', (ms, expected) => {
+        expect(formatTime(ms)).toBe(expected);
     });
 });
 

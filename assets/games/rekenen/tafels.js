@@ -4,6 +4,9 @@
  * A round practises one table (2–10): ten sums "multiplier × table" for multipliers 1–10,
  * in random order. A task is solved once the pupil enters the right answer.
  *
+ * Timer: the round's clock starts after a READY_COUNTDOWN_SECONDS countdown. The pupil passes
+ * when all sums are solved within TIME_LIMIT_MS; after that they may still finish the round.
+ *
  * Pure ES module: no DOM access, no bare (importmap) imports, randomness injected.
  * The DOM wiring lives in assets/controllers/tafels_controller.js.
  */
@@ -13,6 +16,8 @@ import { shuffle } from '../shared/random.js';
 export const MIN_TABLE = 2;
 export const MAX_TABLE = 10;
 export const ANSWER_MAX_LENGTH = 3;
+export const TIME_LIMIT_MS = 60_000;
+export const READY_COUNTDOWN_SECONDS = 3;
 
 /**
  * @typedef {object} Task
@@ -27,6 +32,8 @@ export const ANSWER_MAX_LENGTH = 3;
  * @typedef {object} Round
  * @property {number} table
  * @property {Task[]} tasks
+ * @property {number | null} startedAt timestamp (ms) the clock started, null before that
+ * @property {number | null} finishedAt timestamp (ms) the last task was solved
  */
 
 /**
@@ -47,7 +54,7 @@ export function createRound(table, random = Math.random) {
         return { id: multiplier, multiplier, table, answer: multiplier * table, solved: false };
     });
 
-    return { table, tasks: shuffle(tasks, random) };
+    return { table, tasks: shuffle(tasks, random), startedAt: null, finishedAt: null };
 }
 
 /**
@@ -62,17 +69,21 @@ export function checkAnswer(task, input) {
 }
 
 /**
- * Returns a new round with the given task marked as solved.
+ * Returns a new round with the given task marked as solved. Solving the last task
+ * records `finishedAt`.
  *
  * @param {Round} round
  * @param {number} taskId
+ * @param {number} now current timestamp in ms
  * @returns {Round}
  */
-export function solveTask(round, taskId) {
-    return {
-        ...round,
-        tasks: round.tasks.map((task) => (task.id === taskId ? { ...task, solved: true } : task)),
-    };
+export function solveTask(round, taskId, now) {
+    const tasks = round.tasks.map((task) =>
+        task.id === taskId ? { ...task, solved: true } : task,
+    );
+    const complete = tasks.every((task) => task.solved);
+
+    return { ...round, tasks, finishedAt: complete ? (round.finishedAt ?? now) : null };
 }
 
 /**
@@ -98,6 +109,69 @@ export function isRoundComplete(round) {
  */
 export function findTask(round, taskId) {
     return round.tasks.find((task) => task.id === taskId);
+}
+
+/**
+ * Starts the round's clock; does nothing if it is already running.
+ *
+ * @param {Round} round
+ * @param {number} now current timestamp in ms
+ * @returns {Round}
+ */
+export function startTimer(round, now) {
+    return round.startedAt === null ? { ...round, startedAt: now } : round;
+}
+
+/**
+ * Milliseconds left on the clock (never negative). Stops counting once the round is finished.
+ *
+ * @param {Round} round
+ * @param {number} now current timestamp in ms
+ * @returns {number}
+ */
+export function timeLeft(round, now) {
+    if (round.startedAt === null) {
+        return TIME_LIMIT_MS;
+    }
+
+    const elapsed = (round.finishedAt ?? now) - round.startedAt;
+
+    return Math.max(0, TIME_LIMIT_MS - elapsed);
+}
+
+/**
+ * @param {Round} round
+ * @param {number} now current timestamp in ms
+ * @returns {boolean}
+ */
+export function isTimeUp(round, now) {
+    return round.startedAt !== null && timeLeft(round, now) === 0;
+}
+
+/**
+ * Whether every sum was solved within the time limit.
+ *
+ * @param {Round} round
+ * @returns {boolean}
+ */
+export function isPassed(round) {
+    return (
+        round.startedAt !== null &&
+        round.finishedAt !== null &&
+        round.finishedAt - round.startedAt <= TIME_LIMIT_MS
+    );
+}
+
+/**
+ * Formats milliseconds as m:ss, rounding up so the clock shows 0:00 only when time is up.
+ *
+ * @param {number} ms
+ * @returns {string}
+ */
+export function formatTime(ms) {
+    const seconds = Math.ceil(Math.max(0, ms) / 1000);
+
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 /**

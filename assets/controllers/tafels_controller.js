@@ -5,18 +5,32 @@ import {
     createRound,
     findTask,
     format,
+    formatTime,
+    isPassed,
     isRoundComplete,
+    isTimeUp,
+    READY_COUNTDOWN_SECONDS,
     remainingTasks,
     removeLastDigit,
     solveTask,
+    startTimer,
+    TIME_LIMIT_MS,
+    timeLeft,
 } from '../games/rekenen/tafels.js';
 
 const BUBBLE_HUES = [200, 280, 330, 30, 150, 50];
 // Fallback for when no animationend fires (e.g. prefers-reduced-motion).
 const POP_FALLBACK_MS = 600;
+const CLOCK_TICK_MS = 200;
+// How long "Start!" stays visible before the ready dialog closes.
+const GO_VISIBLE_MS = 800;
+// Delay between bubbles popping up one after another.
+const APPEAR_STAGGER_MS = 40;
 
 /*
  * Tafels bubbles: one bubble per sum; click a bubble, type the answer, pop it.
+ * Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1 countdown; then the
+ * one-minute clock starts. When it runs out the pupil can still finish.
  * DOM wiring only — the game rules live in assets/games/rekenen/tafels.js.
  *
  * Translated texts arrive as values with %placeholders%, filled in with format().
@@ -30,6 +44,14 @@ export default class extends Controller {
         'progress',
         'complete',
         'restart',
+        'timer',
+        'time',
+        'passedMessage',
+        'lateMessage',
+        'readyDialog',
+        'readyTime',
+        'readyButton',
+        'countdown',
     ];
 
     static values = {
@@ -38,6 +60,8 @@ export default class extends Controller {
         correct: String,
         tryAgain: String,
         remaining: String,
+        timeUp: String,
+        go: String,
     };
 
     connect() {
@@ -46,17 +70,21 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.stopClock();
         this.timers.forEach((timer) => clearTimeout(timer));
         this.timers.clear();
     }
 
     start() {
+        this.stopClock();
         this.round = createRound(this.tableValue);
         this.activeBubble = null;
+        this.timerTarget.classList.remove('round-timer--expired');
+        this.renderClock();
+        this.showReady();
 
-        this.fieldTarget.replaceChildren(
-            ...this.round.tasks.map((task) => this.createBubble(task)),
-        );
+        // Bubbles only appear once the ready countdown is over (see revealBubbles).
+        this.fieldTarget.replaceChildren();
         this.keypadTarget.hidden = true;
         this.completeTarget.hidden = true;
         this.statusTarget.textContent = '';
@@ -65,15 +93,92 @@ export default class extends Controller {
 
     restart() {
         this.start();
-        this.fieldTarget.querySelector('.bubble__sum')?.focus();
     }
 
-    /** @param {import('../games/rekenen/tafels.js').Task} task */
-    createBubble(task) {
+    showReady() {
+        this.readyDone = false;
+        this.readyTimeTarget.textContent = formatTime(TIME_LIMIT_MS);
+        this.readyButtonTarget.hidden = false;
+        this.countdownTarget.textContent = '';
+        if (!this.readyDialogTarget.open) {
+            this.readyDialogTarget.showModal();
+        }
+        this.readyButtonTarget.focus();
+    }
+
+    /** "Ik ben er klaar voor!" → 3, 2, 1, Start! → close the dialog and start the clock. */
+    ready() {
+        this.readyButtonTarget.hidden = true;
+
+        for (let step = 0; step < READY_COUNTDOWN_SECONDS; step++) {
+            this.schedule(step * 1000, () =>
+                this.showCountdown(String(READY_COUNTDOWN_SECONDS - step)),
+            );
+        }
+        this.schedule(READY_COUNTDOWN_SECONDS * 1000, () => this.showCountdown(this.goValue));
+        this.schedule(READY_COUNTDOWN_SECONDS * 1000 + GO_VISIBLE_MS, () => {
+            this.readyDone = true;
+            this.readyDialogTarget.close();
+            this.revealBubbles();
+            this.startClock();
+            this.fieldTarget.querySelector('.bubble__sum')?.focus();
+        });
+    }
+
+    showCountdown(text) {
+        const countdown = this.countdownTarget;
+        countdown.textContent = text;
+        countdown.classList.remove('ready-dialog__countdown--tick');
+        // Force a reflow so the pop-in animation restarts for every step.
+        void countdown.offsetWidth;
+        countdown.classList.add('ready-dialog__countdown--tick');
+    }
+
+    /** The countdown is the only way out of the ready dialog (no Escape). */
+    preventCancel(event) {
+        event.preventDefault();
+    }
+
+    /**
+     * Browsers may still close the dialog (e.g. Escape before any user interaction, where
+     * `cancel` is not cancelable and `closedby` is unsupported): reopen it.
+     */
+    readyClosed() {
+        if (this.readyDone) {
+            return;
+        }
+
+        this.readyDialogTarget.showModal();
+        if (!this.readyButtonTarget.hidden) {
+            this.readyButtonTarget.focus();
+        }
+    }
+
+    schedule(delay, callback) {
+        const timer = setTimeout(() => {
+            this.timers.delete(timer);
+            callback();
+        }, delay);
+        this.timers.add(timer);
+    }
+
+    revealBubbles() {
+        this.fieldTarget.replaceChildren(
+            ...this.round.tasks.map((task, index) => this.createBubble(task, index)),
+        );
+    }
+
+    /**
+     * @param {import('../games/rekenen/tafels.js').Task} task
+     * @param {number} index position in the field, for the staggered pop-up
+     */
+    createBubble(task, index) {
         const bubble = this.bubbleTemplateTarget.content.firstElementChild.cloneNode(true);
         const params = { multiplier: task.multiplier, table: task.table };
 
         bubble.dataset.taskId = String(task.id);
+        bubble.classList.add('bubble--appearing');
+        bubble.style.setProperty('--appear-delay', `${index * APPEAR_STAGGER_MS}ms`);
         bubble.style.setProperty('--bubble-hue', String(BUBBLE_HUES[task.id % BUBBLE_HUES.length]));
         bubble.style.setProperty('--bubble-delay', `${(-Math.random() * 3).toFixed(2)}s`);
         bubble.querySelector('.bubble__question').textContent =
@@ -88,7 +193,10 @@ export default class extends Controller {
     }
 
     open(event) {
-        const bubble = event.currentTarget.closest('.bubble');
+        this.activate(event.currentTarget.closest('.bubble'));
+    }
+
+    activate(bubble) {
         if (bubble === this.activeBubble || bubble.classList.contains('bubble--popping')) {
             this.answerInput()?.focus();
             return;
@@ -104,7 +212,9 @@ export default class extends Controller {
         input.hidden = false;
         this.keypadTarget.hidden = false;
         this.statusTarget.textContent = '';
-        input.focus();
+        input.focus({ preventScroll: true });
+        // scroll-margin on .bubble--active keeps the bubble clear of the sticky keypad dock.
+        bubble.scrollIntoView({ block: 'nearest' });
     }
 
     close() {
@@ -137,6 +247,47 @@ export default class extends Controller {
 
         input.value = removeLastDigit(input.value);
         input.focus();
+    }
+
+    /**
+     * Typing a digit anywhere on the page answers a bubble: the open one, else the focused
+     * bubble, else the first remaining bubble.
+     */
+    typeAnywhere(event) {
+        const digit = event.key;
+        if (
+            !/^\d$/.test(digit) ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            this.readyDialogTarget.open ||
+            event.target.classList?.contains('bubble__answer')
+        ) {
+            return;
+        }
+
+        const bubble = this.activeBubble ?? this.bubbleToActivate();
+        if (!bubble) {
+            return;
+        }
+
+        // Handle the digit ourselves: focus moves to the answer field during this keydown.
+        event.preventDefault();
+        this.activate(bubble);
+        const input = this.answerInput();
+        input.value = appendDigit(input.value, digit);
+        input.focus();
+    }
+
+    bubbleToActivate() {
+        const available = (bubble) => bubble && !bubble.classList.contains('bubble--popping');
+        const focused = document.activeElement?.closest('.bubble');
+
+        if (available(focused) && this.fieldTarget.contains(focused)) {
+            return focused;
+        }
+
+        return [...this.fieldTarget.children].find(available) ?? null;
     }
 
     /** Keeps physical-keyboard input to digits only. */
@@ -180,7 +331,7 @@ export default class extends Controller {
             return;
         }
 
-        this.round = solveTask(this.round, task.id);
+        this.round = solveTask(this.round, task.id, Date.now());
         this.statusTarget.textContent = format(this.correctValue, {
             multiplier: task.multiplier,
             table: task.table,
@@ -207,6 +358,8 @@ export default class extends Controller {
             this.removeBubble(bubble);
         } else if (event.animationName === 'bubble-wiggle') {
             bubble.classList.remove('bubble--wrong');
+        } else if (event.animationName === 'bubble-appear') {
+            bubble.classList.remove('bubble--appearing');
         }
     }
 
@@ -219,8 +372,7 @@ export default class extends Controller {
 
     focusNext(poppedBubble) {
         if (isRoundComplete(this.round)) {
-            this.completeTarget.hidden = false;
-            this.restartTarget.focus();
+            this.finish();
             return;
         }
 
@@ -228,6 +380,49 @@ export default class extends Controller {
             (bubble) => bubble !== poppedBubble && !bubble.classList.contains('bubble--popping'),
         );
         next?.querySelector('.bubble__sum').focus();
+    }
+
+    finish() {
+        this.stopClock();
+        this.renderClock();
+
+        const passed = isPassed(this.round);
+        this.passedMessageTarget.hidden = !passed;
+        this.lateMessageTarget.hidden = passed;
+        this.completeTarget.hidden = false;
+        this.restartTarget.focus();
+    }
+
+    /** Starts the round's clock (once per round). */
+    startClock() {
+        if (this.round.startedAt !== null) {
+            return;
+        }
+
+        this.round = startTimer(this.round, Date.now());
+        this.clock = setInterval(() => this.tick(), CLOCK_TICK_MS);
+    }
+
+    stopClock() {
+        clearInterval(this.clock);
+        this.clock = null;
+    }
+
+    tick() {
+        const now = Date.now();
+        this.renderClock(now);
+
+        if (isTimeUp(this.round, now)) {
+            this.stopClock();
+            this.timerTarget.classList.add('round-timer--expired');
+            this.statusTarget.textContent = this.timeUpValue;
+        }
+    }
+
+    renderClock(now = Date.now()) {
+        const left = timeLeft(this.round, now);
+        this.timeTarget.textContent = formatTime(left);
+        this.timerTarget.style.setProperty('--time-left', String(left / TIME_LIMIT_MS));
     }
 
     updateProgress() {

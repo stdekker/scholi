@@ -33,6 +33,10 @@ final class RekenenControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'De tafel van 6');
         self::assertSelectorExists('[data-controller="tafels"][data-tafels-table-value="6"]');
         self::assertSelectorExists('meta[name="turbo-cache-control"][content="no-cache"]');
+        self::assertSelectorTextSame('[role="timer"]', '1:00');
+        self::assertSelectorTextSame('dialog.ready-dialog h2', 'Ben je er klaar voor?');
+        self::assertSelectorTextContains('dialog.ready-dialog button', 'Ik ben er klaar voor!');
+        self::assertSelectorTextContains('[data-tafels-target="lateMessage"]', 'Iets sneller de volgende keer!');
     }
 
     #[DataProvider('invalidTables')]

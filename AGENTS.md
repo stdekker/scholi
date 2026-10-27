@@ -72,9 +72,11 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 - `/rekenen` lists the tables 2–10. `/rekenen/tafel/{2..10}` is the game; other values give a 404.
 - A round has ten bubbles, "multiplier × table" for multipliers 1–10 (Dutch notation: `2 × 6` belongs to *de tafel van 6*), in random order. The bubbles bob gently, and the bobbing is off under `prefers-reduced-motion`.
-- Clicking a bubble enlarges it and shows an answer field plus an on-screen keypad (0–9, ⌫, OK). The physical keyboard also works: digits, Backspace, Enter to check, Escape to close.
-- A correct answer pops the bubble and removes it. A wrong answer gives a friendly "try again" with a wiggle, and the pupil can retry without limit. There is no score, timer or mistake counter.
-- When all ten bubbles are popped, a completion panel offers "Nog een keer" (new round) and "Andere tafel".
+- Clicking a bubble enlarges it and shows an answer field plus an on-screen keypad (0–9, ⌫, OK). The physical keyboard also works: digits, Backspace, Enter to check, Escape to close. Typing a digit while no bubble is open opens the focused bubble, or else the first remaining one, and enters that digit.
+- A correct answer pops the bubble and removes it. A wrong answer gives a friendly "try again" with a wiggle, and the pupil can retry without limit. There is no score or mistake counter.
+- **Ready dialog:** every round (also after "Nog een keer") opens with a modal `<dialog>` showing the time limit and "Ben je er klaar voor?". The pupil presses "Ik ben er klaar voor!", sees a countdown of 3, 2, 1, "Start!" (`READY_COUNTDOWN_SECONDS`), and then the dialog closes. Escape can't close it. The bubble field stays empty until "Start!"; then the bubbles pop up one after another (`bubble--appearing`).
+- **Timer:** one minute (`TIME_LIMIT_MS`). It starts when the ready countdown ends and is shown as m:ss plus a shrinking bar. If it runs out, the pupil sees "De tijd is om! Maak de bubbels rustig af." and keeps playing.
+- When all ten bubbles are popped, a completion panel appears. Within the minute it says the pupil **passed** ("Super gedaan! … binnen een minuut geknapt!"). Otherwise it says "Alle bubbels zijn geknapt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and "Andere tafel".
 - Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
 - The game page sets `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
 
@@ -96,7 +98,7 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 - Large text (base 1.25rem) and large touch targets (≥ 48px). Games must work by touch (tablets/Chromebooks), mouse **and** keyboard.
 - Use short, simple Dutch sentences and plenty of positive, encouraging feedback. Never shame mistakes.
-- Don't put the child under time pressure by default. If a timer is added, it must be optional.
+- Keep time pressure gentle. A timer may set a goal ("binnen een minuut"), but running out of time must never block the child: they can always finish, and the feedback stays encouraging.
 - Meet WCAG 2.2 AA: contrast, visible focus (`:focus-visible`), semantic HTML, `aria-live` for feedback, and support for `prefers-reduced-motion`.
 - Never rely on colour or sound alone to carry meaning.
 
