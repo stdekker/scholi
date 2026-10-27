@@ -97,7 +97,10 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 ## Players (accounts)
 
-- **No passwords and no e-mail.** Registering (`/speler/nieuw`) only asks for a name, pre-filled with a fun suggestion ("Vrolijke Vos", `App\Player\FunNameGenerator`; these word lists are content data, not translations).
+- **No passwords and no e-mail.** Registering (`/speler/nieuw`) only asks for a name and an animal emoji, pre-filled with a fun suggestion: a positive adjective + animal ("Dappere Dolfijn") and that animal's emoji 🐬 (`App\Player\FunNameGenerator`; the word lists are content data, not translations).
+  - The emoji is a **separate field** (`Player::$emoji`, nullable for older players). It's picked in a popup grid: a native `popover` with radio buttons, validated server-side against `FunNameGenerator::emojis()` (only animals for now). `emoji_picker_controller.js` only updates the toggle button and closes the popup. The header and greeting use `Player::getDisplayName()` ("Dappere Dolfijn 🐬").
+  - All animals are de-words, because the adjective's "-e" form is wrong for het-words. Emoji are Emoji 13.0 or older and contain no ZWJ sequences, so they render on older Chromebooks and tablets. A unit test checks that every combination fits `Player::NAME_MAX_LENGTH`.
+  - The 🎲 "Andere naam" button (`name_suggestions_controller.js`) cycles through 20 server-generated suggestions (name + matching emoji) without asking the server again. It stays hidden without JS.
 - The account *is* its **player link** `/speler/{token}`: 32 random alphanumeric characters (`App\Security\PlayerToken`). Only the SHA-256 hash is stored, so a lost link can't be recovered. The UI tells pupils to keep it and to share it only with parents or the teacher.
 - The browser remembers the token in the `scholi_player` cookie (HttpOnly, SameSite=Lax, 400 days, refreshed on every visit). `PlayerCookieAuthenticator` logs the player in on each request; the `main` firewall is stateless and the app uses no session.
 - An unknown or invalid cookie never blocks anyone: the visitor continues as a guest and `PlayerCookieSubscriber` clears the cookie. Opening a valid link sets the cookie (switching player if needed); an unknown link gives a friendly 404.
@@ -132,7 +135,7 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS **and fonts** locally into `assets/vendor/` (git-ignored). `importmap:install` downloads them, and `composer install` runs it automatically.
 - Fonts: pin the font's CSS with `ddev console importmap:require @fontsource/<font>/<weight>.css` and import it in `assets/app.js`. AssetMapper also downloads the woff2/woff files that CSS references. Never commit font files and never link to fonts.googleapis.com.
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
-- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name), the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. Nothing else: no e-mail, no IP addresses, no tracking.
+- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. Nothing else: no e-mail, no IP addresses, no tracking.
 
 ## Code style
 

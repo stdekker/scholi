@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ player.name }} – {{ parent() }}{% endblock %}
+{% block title %}{{ player.displayName }} – {{ parent() }}{% endblock %}
 
 {% block meta %}
     {# Progress changes after every round; never show a stale copy from Turbo's cache. #}
@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block body %}
-    <h1>{{ 'player.show.title'|trans({'%name%': player.name}) }}</h1>
+    <h1>{{ 'player.show.title'|trans({'%name%': player.displayName}) }}</h1>
 
     {% if is_new %}
         <p class="notice notice--success">{{ 'player.show.created'|trans }}</p>

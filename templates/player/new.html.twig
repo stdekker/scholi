@@ -8,7 +8,45 @@
         <p>{{ 'player.new.intro'|trans }}</p>
 
         {{ form_start(form, {attr: {class: 'player-form'}}) }}
-            {{ form_row(form.name) }}
+            <div class="player-form__identity" data-controller="name-suggestions emoji-picker"
+                data-name-suggestions-suggestions-value="{{ name_suggestions|json_encode }}"
+                data-name-suggestions-announce-value="{{ 'player.new.shuffled'|trans }}">
+                <div class="player-form__field">
+                    {{ form_label(form.emoji) }}
+                    {# Native popover: opens without JS; the controller updates the button and closes it. #}
+                    <button type="button" class="emoji-picker__toggle" popovertarget="emoji-picker"
+                        aria-label="{{ 'player.new.emoji_choose'|trans }}">
+                        <span class="emoji-picker__preview" data-emoji-picker-target="preview">{{ form.emoji.vars.value }}</span>
+                    </button>
+                    <div class="emoji-picker__popover" id="emoji-picker" popover data-emoji-picker-target="popover">
+                        <p class="emoji-picker__title">{{ 'player.new.emoji_choose'|trans }}</p>
+                        <div class="emoji-picker__grid" data-action="change->emoji-picker#select">
+                            {% for choice in form.emoji %}
+                                <label class="emoji-picker__option">
+                                    {{ form_widget(choice, {attr: {class: 'emoji-picker__radio'}}) }}
+                                    <span aria-hidden="true">{{ choice.vars.label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {{ form_errors(form.emoji) }}
+                </div>
+
+                <div class="player-form__field player-form__field--grow">
+                    {{ form_label(form.name) }}
+                    <div class="player-form__name-row">
+                        {{ form_widget(form.name, {attr: {'data-name-suggestions-target': 'input'}}) }}
+                        {# Shown by the controller: without JS the pupil simply types a name. #}
+                        <button type="button" class="action-button action-button--secondary action-button--small player-form__shuffle"
+                            data-name-suggestions-target="button" data-action="name-suggestions#next" hidden>
+                            <span aria-hidden="true">🎲</span> {{ 'player.new.shuffle'|trans }}
+                        </button>
+                    </div>
+                    {{ form_help(form.name) }}
+                    {{ form_errors(form.name) }}
+                </div>
+                <p class="visually-hidden" role="status" data-name-suggestions-target="status"></p>
+            </div>
             <button type="submit" class="action-button">{{ 'player.new.submit'|trans }}</button>
         {{ form_end(form) }}
     </section>

@@ -26,6 +26,9 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
  */
 final class PlayerController extends AbstractController
 {
+    /** Names the "Andere naam" button cycles through without asking the server again. */
+    private const int NAME_SUGGESTIONS = 20;
+
     #[Route('/speler', name: 'app_player', methods: ['GET'])]
     public function show(
         Request $request,
@@ -61,15 +64,17 @@ final class PlayerController extends AbstractController
             return $this->redirectToRoute('app_player');
         }
 
-        $form = $this->createForm(PlayerType::class, ['name' => $names->generate()]);
+        $suggestions = $names->suggestions(self::NAME_SUGGESTIONS);
+        $form = $this->createForm(PlayerType::class, $suggestions[0]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $name = $form->get('name')->getData();
-            \assert(\is_string($name));
+            $emoji = $form->get('emoji')->getData();
+            \assert(\is_string($name) && \is_string($emoji));
 
             $token = PlayerToken::generate();
-            $entityManager->persist(new Player($name, PlayerToken::hash($token), new \DateTimeImmutable()));
+            $entityManager->persist(new Player($name, PlayerToken::hash($token), new \DateTimeImmutable(), $emoji));
             $entityManager->flush();
 
             $response = $this->redirectToRoute('app_player', ['nieuw' => 1]);
@@ -78,7 +83,10 @@ final class PlayerController extends AbstractController
             return $response;
         }
 
-        return $this->render('player/new.html.twig', ['form' => $form]);
+        return $this->render('player/new.html.twig', [
+            'form' => $form,
+            'name_suggestions' => $suggestions,
+        ]);
     }
 
     #[Route('/speler/{token}', name: 'app_player_link', requirements: ['token' => PlayerToken::PATTERN], methods: ['GET'])]

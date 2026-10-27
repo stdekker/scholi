@@ -18,7 +18,7 @@
             <a class="site-header__brand" href="{{ path('app_home') }}">{{ 'app.name'|trans }}</a>
             {% if app.user %}
                 <a class="site-header__player" href="{{ path('app_player') }}">
-                    <span aria-hidden="true">👤</span> {{ app.user.name }}
+                    {% if app.user.emoji is null %}<span aria-hidden="true">👤</span>{% endif %} {{ app.user.displayName }}
                 </a>
             {% else %}
                 <a class="site-header__player" href="{{ path('app_player_new') }}">{{ 'player.header.save_progress'|trans }}</a>

@@ -52,7 +52,11 @@ player:
         title: Maak je speler
         intro: Dan bewaren we hoe goed je de tafels kent. Je hoeft alleen een naam te kiezen.
         name_label: Jouw spelersnaam
-        name_help: Je mag deze grappige naam houden of zelf een naam verzinnen. Gebruik niet je echte naam.
+        name_help: Houd deze grappige naam, kies een andere met de dobbelsteen of verzin zelf een naam. Gebruik niet je echte naam.
+        emoji_label: Jouw dier
+        emoji_choose: Kies je dier
+        shuffle: Andere naam
+        shuffled: 'Nieuwe naam: %name%'
         submit: Maak mijn speler
     show:
         title: 'Hoi %name%!'

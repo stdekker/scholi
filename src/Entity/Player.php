@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * A pupil's account. It holds only a self-chosen (fun) name; the player link token is the
+ * A pupil's account. It holds only a self-chosen (fun) name and animal emoji; the player link token is the
  * only credential and is stored as a SHA-256 hash (see App\Security\PlayerToken).
  */
 #[ORM\Entity(repositoryClass: PlayerRepository::class)]
@@ -25,15 +25,20 @@ class Player implements UserInterface
     #[ORM\Column(length: self::NAME_MAX_LENGTH)]
     private string $name;
 
+    /** One of FunNameGenerator::emojis(); null for players created before emoji existed. */
+    #[ORM\Column(length: 16, nullable: true)]
+    private ?string $emoji;
+
     #[ORM\Column(length: 64, unique: true)]
     private string $tokenHash;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(string $name, string $tokenHash, \DateTimeImmutable $createdAt)
+    public function __construct(string $name, string $tokenHash, \DateTimeImmutable $createdAt, ?string $emoji = null)
     {
         $this->name = $name;
+        $this->emoji = $emoji;
         $this->tokenHash = $tokenHash;
         $this->createdAt = $createdAt;
     }
@@ -46,6 +51,17 @@ class Player implements UserInterface
     public function getName(): string
     {
         return $this->name;
+    }
+
+    public function getEmoji(): ?string
+    {
+        return $this->emoji;
+    }
+
+    /** Name followed by the emoji, e.g. "Dappere Dolfijn 🐬". */
+    public function getDisplayName(): string
+    {
+        return null === $this->emoji ? $this->name : $this->name.' '.$this->emoji;
     }
 
     public function getTokenHash(): string

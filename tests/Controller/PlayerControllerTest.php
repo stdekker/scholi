@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Entity\Player;
 use App\Game\Tafels;
+use App\Player\FunNameGenerator;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
 use App\Tests\Support\PlayerTestTrait;
@@ -22,9 +23,17 @@ final class PlayerControllerTest extends WebTestCase
         $crawler = $client->request('GET', '/speler/nieuw');
 
         self::assertResponseIsSuccessful();
-        self::assertNotSame('', $crawler->filter('#player_name')->attr('value'), 'A fun name is suggested');
+        $suggested = (string) $crawler->filter('#player_name')->attr('value');
+        $decoded = json_decode((string) $crawler->filter('[data-name-suggestions-suggestions-value]')->attr('data-name-suggestions-suggestions-value'), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        $names = array_values(array_filter(array_column(array_filter($decoded, \is_array(...)), 'name'), \is_string(...)));
+        self::assertCount(20, array_unique($names), 'The randomize button gets 20 different names');
+        self::assertSame($names[0], $suggested, 'The field starts with the first suggestion');
+        self::assertSelectorExists('button.player-form__shuffle[type="button"][hidden]');
+        self::assertSelectorCount(\count(FunNameGenerator::emojis()), '#emoji-picker[popover] input[type="radio"][name="player[emoji]"]');
+        self::assertSelectorExists('#emoji-picker input[aria-label="Dolfijn"][value="🐬"]');
 
-        $client->submitForm('Maak mijn speler', ['player[name]' => 'Rekenkanon']);
+        $client->submitForm('Maak mijn speler', ['player[name]' => 'Rekenkanon', 'player[emoji]' => '🦉']);
 
         self::assertResponseRedirects('/speler?nieuw=1');
         $cookie = $this->responsePlayerCookie($client);
@@ -39,13 +48,55 @@ final class PlayerControllerTest extends WebTestCase
 
         $player = $this->entityManager()->getRepository(Player::class)->findOneBy(['name' => 'Rekenkanon']);
         self::assertNotNull($player);
+        self::assertSame('🦉', $player->getEmoji());
         self::assertSame(PlayerToken::hash($token), $player->getTokenHash());
         self::assertNotSame($token, $player->getTokenHash(), 'The raw token is never stored');
 
         $client->followRedirect();
-        self::assertSelectorTextContains('h1', 'Hoi Rekenkanon!');
+        self::assertSelectorTextContains('h1', 'Hoi Rekenkanon 🦉!');
+        self::assertSelectorTextSame('.site-header__player', 'Rekenkanon 🦉');
         self::assertSelectorTextContains('.notice--success', 'Je speler is gemaakt!');
         self::assertSelectorExists(\sprintf('#player-link[value="http://localhost/speler/%s"]', $token));
+    }
+
+    public function testSuggestedNameAndEmojiAreStored(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/speler/nieuw');
+        $suggested = (string) $crawler->filter('#player_name')->attr('value');
+        $emoji = (string) $crawler->filter('#emoji-picker input[checked]')->attr('value');
+        self::assertSame($emoji, trim($crawler->filter('.emoji-picker__preview')->text()));
+
+        $client->submitForm('Maak mijn speler');
+        $client->followRedirect();
+
+        self::assertSelectorTextSame('h1', 'Hoi '.$suggested.' '.$emoji.'!');
+        $player = $this->entityManager()->getRepository(Player::class)->findOneBy(['name' => $suggested]);
+        self::assertSame($emoji, $player?->getEmoji());
+    }
+
+    public function testOnlyListedEmojiAreAccepted(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/speler/nieuw');
+        $form = $crawler->selectButton('Maak mijn speler')->form();
+        $form->disableValidation()->setValues(['player[emoji]' => '💩']);
+
+        $client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertNull($this->responsePlayerCookie($client));
+    }
+
+    public function testPlayerWithoutEmojiKeepsGenericIcon(): void
+    {
+        $client = static::createClient();
+        [, $token] = $this->createPlayer('Oude Speler');
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/');
+
+        self::assertSelectorTextSame('.site-header__player', '👤 Oude Speler');
     }
 
     public function testNameIsRequired(): void
