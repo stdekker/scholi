@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'home.title'|trans }} – {{ parent() }}{% endblock %}
+
+{% block body %}
+    <h1>{{ 'home.title'|trans }}</h1>
+    <p>{{ 'home.intro'|trans }}</p>
+
+    <ul class="game-list">
+        <li>
+            <a class="game-card" href="{{ path('app_game_rekenen') }}">
+                <span class="game-card__title">{{ 'game.rekenen.title'|trans }}</span>
+                <span class="game-card__description">{{ 'game.rekenen.description'|trans }}</span>
+            </a>
+        </li>
+    </ul>
+{% endblock %}

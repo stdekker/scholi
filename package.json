@@ -1,0 +1,20 @@
+{
+    "name": "scholi",
+    "private": true,
+    "type": "module",
+    "description": "Dev tooling only (lint, format, unit tests). Runtime JS is served by Symfony AssetMapper, not bundled.",
+    "scripts": {
+        "lint": "eslint .",
+        "format": "prettier --write \"assets/**/*.{js,css,json}\" \"tests/js/**/*.js\" \"*.{js,json}\"",
+        "format:check": "prettier --check \"assets/**/*.{js,css,json}\" \"tests/js/**/*.js\" \"*.{js,json}\"",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.13.0",
+        "globals": "^17.13.0",
+        "prettier": "^3.9.10",
+        "vitest": "^5.0.5"
+    }
+}

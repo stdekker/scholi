@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'game.rekenen.title'|trans }} – {{ parent() }}{% endblock %}
+
+{% block body %}
+    <h1>{{ 'game.rekenen.title'|trans }}</h1>
+
+    <section class="game-board" data-controller="rekenen" aria-live="polite">
+        <p>{{ 'game.rekenen.loading'|trans }}</p>
+    </section>
+{% endblock %}

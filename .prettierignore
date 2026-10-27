@@ -1,0 +1,8 @@
+assets/vendor/
+public/
+var/
+vendor/
+node_modules/
+composer.json
+composer.lock
+package-lock.json

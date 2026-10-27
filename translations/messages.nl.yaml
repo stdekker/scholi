@@ -1,0 +1,12 @@
+app:
+    name: Scholi
+
+home:
+    title: Kies een spel
+    intro: Wat wil je vandaag oefenen?
+
+game:
+    rekenen:
+        title: Rekenen
+        description: Oefen met plussen, minnen en meer.
+        loading: Het spel wordt geladen…

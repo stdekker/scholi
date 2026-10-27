@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+## Description: Run all quality checks (PHP-CS-Fixer, PHPStan, PHPUnit, ESLint, Prettier, Vitest)
+## Usage: qa
+## Example: "ddev qa"
+
+set -euo pipefail
+
+cd /var/www/html
+
+echo "==> PHP: code style, static analysis, tests"
+composer qa
+
+echo "==> JS: lint, formatting, tests"
+npm run --silent lint
+npm run --silent format:check
+npm run --silent test
