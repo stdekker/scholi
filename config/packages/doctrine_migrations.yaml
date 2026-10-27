@@ -3,3 +3,6 @@ doctrine_migrations:
     migrations_paths:
         'App\Migrations': '%kernel.project_dir%/src/Migrations'
     enable_profiler: false
+    # MariaDB commits DDL implicitly, so wrapping migrations in a transaction only triggers a
+    # deprecation ("transaction is already committed"). See doctrine/migrations#1169.
+    transactional: false

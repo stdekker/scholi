@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+#
+# Deploys the committed HEAD to production (shared hosting at Vimexx, DirectAdmin).
+#
+#   bin/deploy --init      once: create the server folders and app/shared/.env.local template
+#   bin/deploy --dry-run   build and check everything, change nothing on the server
+#   bin/deploy             build, upload, migrate, switch
+#
+# The working copy must be clean (DEPLOY_ALLOW_DIRTY=1 to override): only HEAD is deployed.
+#
+# Runs on the host (it needs your SSH key) and uses DDEV for PHP/Composer.
+# The server's Composer and git are too old, so everything is built locally:
+#
+#   1. git archive HEAD → var/deploy/build, composer install --no-dev, asset-map:compile (in DDEV)
+#   2. rsync → $DEPLOY_PATH/app/releases/<timestamp>-<sha> (unchanged files hard-linked)
+#   3. on the server: link shared .env.local + var/log, cache:clear, doctrine:migrations:migrate
+#   4. switch app/current to the new release (atomic) and keep $KEEP_RELEASES releases
+#
+# Server layout ($DEPLOY_PATH):
+#   app/releases/…            one folder per deploy
+#   app/current -> releases/… the live release
+#   app/shared/.env.local     APP_ENV=prod, APP_SECRET, DATABASE_URL (maintained by hand)
+#   app/shared/var/log/       logs, kept across deploys
+#   public_html -> app/current/public   (the original public_html is kept as a backup)
+
+set -euo pipefail
+
+DEPLOY_HOST="${DEPLOY_HOST:-vimexx}"
+DEPLOY_PATH="${DEPLOY_PATH:-/home/u150449p142020/domains/scholi.nl}"
+DEPLOY_PHP="${DEPLOY_PHP:-/opt/alt/php84/usr/bin/php}"
+KEEP_RELEASES="${KEEP_RELEASES:-5}"
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BUILD_DIR="var/deploy/build"
+MODE="${1:-deploy}"
+
+step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+fail() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+remote() { ssh -o BatchMode=yes "$DEPLOY_HOST" "$@"; }
+
+case "$MODE" in
+    deploy | --dry-run | --init) ;;
+    -h | --help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
+    *) fail "Unknown option '$MODE' (use --init, --dry-run or no option)" ;;
+esac
+
+cd "$PROJECT_DIR"
+
+step "Checking the server ($DEPLOY_HOST:$DEPLOY_PATH)"
+remote "test -d '$DEPLOY_PATH'" || fail "$DEPLOY_PATH does not exist on $DEPLOY_HOST"
+remote "'$DEPLOY_PHP' -r 'exit(PHP_VERSION_ID >= 80400 ? 0 : 1);'" \
+    || fail "$DEPLOY_PHP is missing or older than PHP 8.4"
+
+if [[ "$MODE" == "--init" ]]; then
+    step "Creating server folders and the .env.local template"
+    remote "bash -s" <<EOF
+set -euo pipefail
+cd '$DEPLOY_PATH'
+mkdir -p app/releases app/shared/var/log
+if [ -e app/shared/.env.local ]; then
+    echo "app/shared/.env.local already exists, left untouched."
+else
+    umask 077
+    cat > app/shared/.env.local <<ENV
+# Production settings for Scholi. Not in git; bin/deploy links it into every release.
+APP_ENV=prod
+APP_DEBUG=0
+APP_SECRET=\$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+# Fill in the database created in DirectAdmin (MariaDB 10.6):
+DATABASE_URL="mysql://DB_USER:DB_PASSWORD@localhost:3306/DB_NAME?serverVersion=10.6.20-MariaDB&charset=utf8mb4"
+MAILER_DSN=null://null
+DEFAULT_URI=https://scholi.nl
+ENV
+    echo "Created $DEPLOY_PATH/app/shared/.env.local (mode 600)."
+fi
+EOF
+    printf '\nNext: edit DATABASE_URL in that file (ssh %s), then run bin/deploy --dry-run.\n' "$DEPLOY_HOST"
+    exit 0
+fi
+
+remote "test -f '$DEPLOY_PATH/app/shared/.env.local'" \
+    || fail "app/shared/.env.local is missing on the server: run bin/deploy --init first"
+remote "! grep -qE 'DB_USER|DB_PASSWORD|DB_NAME' '$DEPLOY_PATH/app/shared/.env.local'" \
+    || fail "DATABASE_URL in $DEPLOY_PATH/app/shared/.env.local still has the placeholders"
+
+step "Checking the working copy"
+# Only the committed HEAD is deployed, so uncommitted or untracked files would silently be missing.
+if [[ -n "$(git status --porcelain)" && "${DEPLOY_ALLOW_DIRTY:-0}" != "1" ]]; then
+    git status --short
+    fail "Uncommitted or untracked files (listed above) would not be deployed. Commit them first, or set DEPLOY_ALLOW_DIRTY=1."
+fi
+REVISION="$(git rev-parse --short HEAD)"
+RELEASE="$(date -u +%Y%m%d%H%M%S)-$REVISION"
+printf 'Deploying %s (%s)\n' "$REVISION" "$(git log -1 --format=%s)"
+
+step "Building release $RELEASE in DDEV"
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
+git archive HEAD | tar -x -C "$BUILD_DIR"
+echo "$(git rev-parse HEAD)" > "$BUILD_DIR/REVISION"
+ddev exec -d "/var/www/html/$BUILD_DIR" \
+    composer install --no-dev --optimize-autoloader --no-interaction --no-progress --no-scripts
+ddev exec -d "/var/www/html/$BUILD_DIR" \
+    env APP_ENV=prod APP_DEBUG=0 php bin/console importmap:install
+ddev exec -d "/var/www/html/$BUILD_DIR" \
+    env APP_ENV=prod APP_DEBUG=0 php bin/console asset-map:compile
+ddev exec -d "/var/www/html/$BUILD_DIR" rm -rf var
+
+RSYNC_EXCLUDES=(
+    --exclude=/.ddev --exclude=/tests --exclude=/var --exclude=/node_modules
+    --exclude=/.env.local --exclude='/.env.*.local' --exclude=/.env.test
+    --exclude=/package.json --exclude=/package-lock.json --exclude=/eslint.config.js
+    --exclude=/vitest.config.js --exclude=/.prettierrc.json --exclude=/.prettierignore
+    --exclude=/phpstan.dist.neon --exclude=/.php-cs-fixer.dist.php --exclude=/phpunit.dist.xml
+    --exclude=/.editorconfig --exclude=/.gitignore --exclude=/AGENTS.md --exclude=/CLAUDE.md
+)
+LINK_DEST="$(remote "readlink -f '$DEPLOY_PATH/app/current' 2>/dev/null || true")"
+RSYNC_OPTS=(-az --delete "${RSYNC_EXCLUDES[@]}" -e "ssh -o BatchMode=yes")
+[[ -n "$LINK_DEST" ]] && RSYNC_OPTS+=(--link-dest="$LINK_DEST")
+
+if [[ "$MODE" == "--dry-run" ]]; then
+    step "Dry run: what would be uploaded"
+    rsync "${RSYNC_OPTS[@]}" --dry-run --stats "$BUILD_DIR/" "$DEPLOY_HOST:$DEPLOY_PATH/app/releases/$RELEASE/" \
+        | grep -E '^(Number of (files|regular files transferred)|Total file size|Total transferred)'
+    printf '\nDry run OK: the build works and the server is ready. Nothing was changed.\n'
+    exit 0
+fi
+
+step "Uploading to app/releases/$RELEASE"
+rsync "${RSYNC_OPTS[@]}" "$BUILD_DIR/" "$DEPLOY_HOST:$DEPLOY_PATH/app/releases/$RELEASE/"
+
+step "Activating on the server"
+remote "bash -s" <<EOF
+set -euo pipefail
+cd '$DEPLOY_PATH/app'
+release="releases/$RELEASE"
+
+ln -sfn ../../shared/.env.local "\$release/.env.local"
+mkdir -p "\$release/var" shared/var/log
+ln -sfn ../../../shared/var/log "\$release/var/log"
+
+cd "\$release"
+'$DEPLOY_PHP' bin/console cache:clear --no-interaction
+'$DEPLOY_PHP' bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+cd '$DEPLOY_PATH/app'
+
+# Atomic switch: rename a fresh symlink over the old one.
+ln -sfn "\$release" current.new
+mv -T current.new current
+
+cd '$DEPLOY_PATH'
+if [ ! -L public_html ]; then
+    backup="public_html.before-scholi-\$(date +%Y%m%d%H%M%S)"
+    mv public_html "\$backup"
+    echo "Moved the old public_html to \$backup"
+fi
+ln -sfn app/current/public public_html
+
+# Keep the newest $KEEP_RELEASES releases.
+ls -1d app/releases/*/ | sort | head -n -$KEEP_RELEASES | xargs -r rm -rf
+echo "Live: \$(readlink app/current)"
+EOF
+
+step "Done: $REVISION is live on $DEPLOY_HOST"
