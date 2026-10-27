@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+    ALL_TABLES,
+    ALL_TABLES_COUNT,
     appendDigit,
     checkAnswer,
     createRound,
@@ -42,12 +44,62 @@ describe('createRound', () => {
         expect(order(() => 0)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 1]);
     });
 
-    it.each([1, 11, 2.5, Number.NaN])('rejects table %s', (table) => {
+    it('gives every task a unique id', () => {
+        const ids = createRound(7).tasks.map((task) => task.id);
+
+        expect(new Set(ids).size).toBe(10);
+    });
+
+    it.each([-1, 1, 11, 2.5, Number.NaN])('rejects table %s', (table) => {
         expect(() => createRound(table)).toThrow(RangeError);
     });
 
     it.each([2, 10])('accepts table %s', (table) => {
         expect(createRound(table).tasks).toHaveLength(10);
+    });
+});
+
+describe('createRound for alle tafels', () => {
+    it('picks twenty different sums from tables 2 to 10', () => {
+        const round = createRound(ALL_TABLES);
+
+        expect(ALL_TABLES_COUNT).toBe(20);
+        expect(round.table).toBe(ALL_TABLES);
+        expect(round.tasks).toHaveLength(20);
+
+        const keys = round.tasks.map((task) => `${task.multiplier}x${task.table}`);
+        expect(new Set(keys).size).toBe(20);
+        expect(new Set(round.tasks.map((task) => task.id)).size).toBe(20);
+
+        for (const task of round.tasks) {
+            expect(task.table).toBeGreaterThanOrEqual(2);
+            expect(task.table).toBeLessThanOrEqual(10);
+            expect(task.multiplier).toBeGreaterThanOrEqual(1);
+            expect(task.multiplier).toBeLessThanOrEqual(10);
+            expect(task.answer).toBe(task.multiplier * task.table);
+            expect(task.solved).toBe(false);
+        }
+    });
+
+    it('is deterministic for the injected random source', () => {
+        const sums = () =>
+            createRound(ALL_TABLES, () => 0.9999).tasks.map((t) => `${t.multiplier}x${t.table}`);
+
+        // random() close to 1 keeps the order: the first twenty sums (tafel van 2 and 3).
+        expect(sums()).toEqual([
+            ...Array.from({ length: 10 }, (_, i) => `${i + 1}x2`),
+            ...Array.from({ length: 10 }, (_, i) => `${i + 1}x3`),
+        ]);
+    });
+
+    it('can be completed and judged like a single table', () => {
+        let round = startTimer(createRound(ALL_TABLES, Math.random, 120_000), 0);
+        for (const task of round.tasks) {
+            round = solveTask(round, task.id, 119_000);
+        }
+
+        expect(isRoundComplete(round)).toBe(true);
+        expect(isPassed(round)).toBe(true);
     });
 });
 

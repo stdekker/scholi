@@ -57,7 +57,14 @@ final class TableProgressTest extends TestCase
 
     public function testPassedIsWithinTheTimeLimit(): void
     {
-        self::assertTrue(Tafels::isPassed(Tafels::TIME_LIMIT_MS));
-        self::assertFalse(Tafels::isPassed(Tafels::TIME_LIMIT_MS + 1));
+        self::assertTrue(Tafels::isPassed(6, 60_000));
+        self::assertFalse(Tafels::isPassed(6, 60_001));
+    }
+
+    public function testAlleTafelsGetsTwoMinutes(): void
+    {
+        self::assertSame(120_000, Tafels::timeLimitMs(Tafels::ALL));
+        self::assertTrue(Tafels::isPassed(Tafels::ALL, 120_000));
+        self::assertFalse(Tafels::isPassed(Tafels::ALL, 120_001));
     }
 }

@@ -22,5 +22,13 @@
                 </a>
             </li>
         {% endfor %}
+        <li class="table-picker__item--all">
+            <a class="table-picker__link table-picker__link--all" href="{{ path('app_game_rekenen_alle') }}">
+                <span class="table-picker__label">{{ 'game.rekenen.all_tables'|trans }}</span>
+                {% if progress[all_tables] is defined %}
+                    {{ include('player/_progress_badge.html.twig', {result: progress[all_tables], compact: true}) }}
+                {% endif %}
+            </a>
+        </li>
     </ul>
 {% endblock %}

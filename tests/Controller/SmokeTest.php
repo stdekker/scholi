@@ -28,5 +28,6 @@ final class SmokeTest extends WebTestCase
         yield 'rekenen' => ['/rekenen'];
         yield 'tafel van 2' => ['/rekenen/tafel/2'];
         yield 'tafel van 10' => ['/rekenen/tafel/10'];
+        yield 'alle tafels' => ['/rekenen/alle-tafels'];
     }
 }

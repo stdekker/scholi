@@ -33,10 +33,12 @@
     <section class="player-card">
         <h2>{{ 'player.progress.title'|trans }}</h2>
         <ul class="progress-list">
-            {% for table in tables %}
+            {% for table in tables|merge([all_tables]) %}
                 {% set result = progress[table] ?? null %}
                 <li class="progress-list__item">
-                    <span class="progress-list__table">{{ 'game.rekenen.table'|trans({'%table%': table}) }}</span>
+                    <span class="progress-list__table">
+                        {{- table == all_tables ? 'game.rekenen.all_tables'|trans : 'game.rekenen.table'|trans({'%table%': table}) -}}
+                    </span>
                     {% if result is null %}
                         <span class="progress-list__status">{{ 'player.progress.not_yet'|trans }}</span>
                     {% else %}

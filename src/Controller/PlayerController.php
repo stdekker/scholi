@@ -45,6 +45,7 @@ final class PlayerController extends AbstractController
             ),
             'is_new' => $request->query->getBoolean('nieuw'),
             'tables' => Tafels::tables(),
+            'all_tables' => Tafels::ALL,
             'progress' => $results->progressFor($player),
         ]);
     }

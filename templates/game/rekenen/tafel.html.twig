@@ -1,6 +1,7 @@
 {% extends 'base.html.twig' %}
 
-{% set title = 'game.rekenen.tafels.title'|trans({'%table%': table}) %}
+{# One template for a single table (2–10) and for "alle tafels" (is_all). #}
+{% set title = is_all ? 'game.rekenen.tafels.all.title'|trans : 'game.rekenen.tafels.title'|trans({'%table%': table}) %}
 
 {% block title %}{{ title }} – {{ parent() }}{% endblock %}
 
@@ -14,7 +15,7 @@
         data-controller="tafels"
         data-tafels-table-value="{{ table }}"
         data-tafels-time-limit-value="{{ time_limit_ms }}"
-        data-tafels-save-url-value="{{ app.user ? path('app_game_rekenen_tafel_result', {table: table}) : '' }}"
+        data-tafels-save-url-value="{{ app.user ? save_url : '' }}"
         data-tafels-sum-label-value="{{ 'game.rekenen.tafels.sum_label'|trans }}"
         data-tafels-correct-value="{{ 'game.rekenen.tafels.correct'|trans }}"
         data-tafels-try-again-value="{{ 'game.rekenen.tafels.try_again'|trans }}"
@@ -30,7 +31,7 @@
             <h2 class="ready-dialog__title" id="ready-dialog-title">{{ 'game.rekenen.tafels.ready.title'|trans }}</h2>
             <p class="ready-dialog__time">
                 <span class="ready-dialog__time-label">{{ 'game.rekenen.tafels.timer.label'|trans }}</span>
-                <span data-tafels-target="readyTime">1:00</span>
+                <span data-tafels-target="readyTime">{{ time_limit }}</span>
             </p>
             <p>{{ 'game.rekenen.tafels.ready.text'|trans }}</p>
             <button type="button" class="action-button ready-dialog__button"
@@ -46,12 +47,12 @@
 
         <header class="bubble-game__header">
             <h1>{{ title }}</h1>
-            <p>{{ 'game.rekenen.tafels.intro'|trans }}</p>
+            <p>{{ (is_all ? 'game.rekenen.tafels.all.intro' : 'game.rekenen.tafels.intro')|trans }}</p>
             <div class="bubble-game__meta">
                 <p class="bubble-game__progress" data-tafels-target="progress"></p>
                 <div class="round-timer" data-tafels-target="timer">
                     <span class="round-timer__label">{{ 'game.rekenen.tafels.timer.label'|trans }}</span>
-                    <span class="round-timer__time" role="timer" data-tafels-target="time">1:00</span>
+                    <span class="round-timer__time" role="timer" data-tafels-target="time">{{ time_limit }}</span>
                     <span class="round-timer__bar" aria-hidden="true"><span class="round-timer__fill"></span></span>
                 </div>
             </div>
@@ -88,7 +89,7 @@
         </div>
 
         <div class="round-complete" data-tafels-target="complete" hidden>
-            <p class="round-complete__message" data-tafels-target="passedMessage">{{ 'game.rekenen.tafels.done'|trans({'%table%': table}) }}</p>
+            <p class="round-complete__message" data-tafels-target="passedMessage">{{ (is_all ? 'game.rekenen.tafels.all.done' : 'game.rekenen.tafels.done')|trans({'%table%': table}) }}</p>
             <p class="round-complete__message" data-tafels-target="lateMessage" hidden>{{ 'game.rekenen.tafels.done_late'|trans({'%table%': table}) }}</p>
             {% if app.user %}
                 <p class="round-complete__note" data-tafels-target="savedMessage" hidden>{{ 'game.rekenen.tafels.saved'|trans }}</p>

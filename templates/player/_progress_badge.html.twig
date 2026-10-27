@@ -2,7 +2,8 @@
     Best result for one table: ⭐ within the time limit, ✓ completed but slower.
     compact: only icon + time visible (picker tiles); the full sentence stays for screen readers.
 #}
-{% set label = (result.passed ? 'player.progress.passed' : 'player.progress.done')|trans({'%time%': result.bestTime}) %}
+{% set passed_key = result.allTables ? 'player.progress.passed_all' : 'player.progress.passed' %}
+{% set label = (result.passed ? passed_key : 'player.progress.done')|trans({'%time%': result.bestTime}) %}
 <span class="progress-badge progress-badge--{{ result.passed ? 'passed' : 'done' }}">
     <span aria-hidden="true">{{ result.passed ? '⭐' : '✓' }}</span>
     {% if compact|default(false) %}

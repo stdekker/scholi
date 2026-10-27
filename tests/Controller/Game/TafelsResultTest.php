@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Game;
 
 use App\Entity\TafelsResult;
+use App\Game\Tafels;
 use App\Tests\Support\PlayerTestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -41,6 +42,41 @@ final class TafelsResultTest extends WebTestCase
         self::assertSame(6, $results[0]->getTableNumber());
         self::assertSame($durationMs, $results[0]->getDurationMs());
         self::assertSame($passed, $results[0]->isPassed());
+    }
+
+    /**
+     * @return iterable<string, array{int, bool}>
+     */
+    public static function alleTafelsDurations(): iterable
+    {
+        yield 'within two minutes' => [110_000, true];
+        yield 'exactly two minutes' => [120_000, true];
+        yield 'too slow' => [125_000, false];
+    }
+
+    #[DataProvider('alleTafelsDurations')]
+    public function testAlleTafelsResultGetsTwoMinutes(int $durationMs, bool $passed): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $this->logIn($client, $token);
+
+        $this->postJson($client, '/rekenen/alle-tafels/resultaat', ['durationMs' => $durationMs]);
+
+        self::assertResponseStatusCodeSame(201);
+        $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player]);
+        self::assertCount(1, $results);
+        self::assertSame(Tafels::ALL, $results[0]->getTableNumber());
+        self::assertSame($passed, $results[0]->isPassed());
+    }
+
+    public function testGuestCannotSaveAlleTafelsResults(): void
+    {
+        $client = static::createClient();
+
+        $this->postJson($client, '/rekenen/alle-tafels/resultaat', ['durationMs' => 45_000]);
+
+        self::assertResponseStatusCodeSame(401);
     }
 
     public function testGuestCannotSaveResults(): void
@@ -113,6 +149,30 @@ final class TafelsResultTest extends WebTestCase
         self::assertSelectorTextContains('.table-picker li:nth-child(5) .progress-badge--passed', '0:49');
         self::assertSelectorTextContains('.table-picker li:nth-child(6) .progress-badge--done', '1:15');
         self::assertSelectorCount(2, '.progress-badge');
+    }
+
+    public function testPickerShowsAlleTafelsBadge(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $this->addResult($player, Tafels::ALL, 95_000);
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/rekenen');
+
+        self::assertSelectorTextContains('.table-picker__item--all .progress-badge--passed', 'Binnen twee minuten! Beste tijd 1:35');
+        self::assertSelectorCount(1, '.progress-badge');
+    }
+
+    public function testAlleTafelsGamePageKnowsWhereToSave(): void
+    {
+        $client = static::createClient();
+        [, $token] = $this->createPlayer();
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/rekenen/alle-tafels');
+
+        self::assertSelectorExists('[data-tafels-save-url-value="/rekenen/alle-tafels/resultaat"]');
     }
 
     public function testGamePageKnowsWhereToSave(): void

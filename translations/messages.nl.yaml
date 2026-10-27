@@ -11,6 +11,7 @@ game:
         description: Oefen de tafels van 2 tot en met 10.
         intro: Welke tafel wil je oefenen?
         table: Tafel van %table%
+        all_tables: Alle tafels
         tafels:
             title: De tafel van %table%
             intro: Klik op een bubbel en typ het antwoord. Lukt het binnen een minuut?
@@ -22,6 +23,10 @@ game:
             done: Super gedaan! Je hebt alle bubbels van de tafel van %table% binnen een minuut geknapt!
             done_late: Alle bubbels zijn geknapt. Iets sneller de volgende keer!
             again: Nog een keer
+            all:
+                title: Alle tafels
+                intro: Twintig sommen uit alle tafels door elkaar. Klik op een bubbel en typ het antwoord. Lukt het binnen twee minuten?
+                done: Super gedaan! Je hebt alle twintig bubbels binnen twee minuten geknapt!
             other_table: Andere tafel
             saved: Je resultaat is bewaard.
             save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
@@ -63,6 +68,7 @@ player:
         title: Jouw tafels
         not_yet: Nog niet geoefend
         passed: 'Binnen een minuut! Beste tijd %time%'
+        passed_all: 'Binnen twee minuten! Beste tijd %time%'
         done: 'Gehaald. Beste tijd %time%'
         play: Tafels oefenen
     logout:

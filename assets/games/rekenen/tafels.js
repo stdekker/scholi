@@ -2,7 +2,8 @@
  * Tafels (multiplication tables) game logic.
  *
  * A round practises one table (2–10): ten sums "multiplier × table" for multipliers 1–10,
- * in random order. A task is solved once the pupil enters the right answer.
+ * in random order. "Alle tafels" (table ALL_TABLES) instead picks ALL_TABLES_COUNT different
+ * sums from all tables. A task is solved once the pupil enters the right answer.
  *
  * Timer: the round's clock starts after a READY_COUNTDOWN_SECONDS countdown. The pupil passes
  * when all sums are solved within TIME_LIMIT_MS; after that they may still finish the round.
@@ -15,6 +16,10 @@ import { shuffle } from '../shared/random.js';
 
 export const MIN_TABLE = 2;
 export const MAX_TABLE = 10;
+/** Table number for "alle tafels" (mirrors App\Game\Tafels::ALL). */
+export const ALL_TABLES = 0;
+/** Bubbles in an "alle tafels" round (the Dutch texts say "twintig"). */
+export const ALL_TABLES_COUNT = 20;
 export const ANSWER_MAX_LENGTH = 3;
 /** Default only: the page passes the server's limit (App\Game\Tafels::TIME_LIMIT_MS) to createRound. */
 export const TIME_LIMIT_MS = 60_000;
@@ -31,7 +36,7 @@ export const READY_COUNTDOWN_SECONDS = 3;
 
 /**
  * @typedef {object} Round
- * @property {number} table
+ * @property {number} table 2–10, or ALL_TABLES
  * @property {Task[]} tasks
  * @property {number} timeLimitMs
  * @property {number | null} startedAt timestamp (ms) the clock started, null before that
@@ -39,31 +44,50 @@ export const READY_COUNTDOWN_SECONDS = 3;
  */
 
 /**
- * Creates a new round for one table, with the ten sums in random order.
+ * Creates a new round: the ten sums of one table in random order, or for ALL_TABLES
+ * ALL_TABLES_COUNT different sums picked at random from all tables.
  *
- * @param {number} table 2–10
+ * @param {number} table 2–10, or ALL_TABLES
  * @param {() => number} [random] source of randomness in [0, 1)
  * @param {number} [timeLimitMs]
  * @returns {Round}
  */
 export function createRound(table, random = Math.random, timeLimitMs = TIME_LIMIT_MS) {
-    if (!Number.isInteger(table) || table < MIN_TABLE || table > MAX_TABLE) {
-        throw new RangeError(`Table must be an integer from ${MIN_TABLE} to ${MAX_TABLE}`);
+    const isAll = table === ALL_TABLES;
+    if (!isAll && (!Number.isInteger(table) || table < MIN_TABLE || table > MAX_TABLE)) {
+        throw new RangeError(
+            `Table must be ${ALL_TABLES} or an integer from ${MIN_TABLE} to ${MAX_TABLE}`,
+        );
     }
 
-    const tasks = Array.from({ length: 10 }, (_, index) => {
-        const multiplier = index + 1;
-
-        return { id: multiplier, multiplier, table, answer: multiplier * table, solved: false };
-    });
+    const tables = isAll ? range(MIN_TABLE, MAX_TABLE) : [table];
+    const sums = tables.flatMap((t) =>
+        range(1, 10).map((multiplier) => ({ multiplier, table: t })),
+    );
+    const picked = shuffle(sums, random).slice(0, isAll ? ALL_TABLES_COUNT : sums.length);
 
     return {
         table,
-        tasks: shuffle(tasks, random),
+        tasks: picked.map(({ multiplier, table: t }, index) => ({
+            id: index + 1,
+            multiplier,
+            table: t,
+            answer: multiplier * t,
+            solved: false,
+        })),
         timeLimitMs,
         startedAt: null,
         finishedAt: null,
     };
+}
+
+/**
+ * @param {number} from
+ * @param {number} to inclusive
+ * @returns {number[]}
+ */
+function range(from, to) {
+    return Array.from({ length: to - from + 1 }, (_, index) => from + index);
 }
 
 /**

@@ -81,7 +81,8 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 ### Rekenen › Tafels (bubbels)
 
-- `/rekenen` lists the tables 2–10. `/rekenen/tafel/{2..10}` is the game; other values give a 404.
+- `/rekenen` lists the tables 2–10 plus "Alle tafels" (a same-size tile centred under the 3 × 3 grid). `/rekenen/tafel/{2..10}` is the game for one table; other values give a 404.
+- **Alle tafels** (`/rekenen/alle-tafels`): 20 different sums (`ALL_TABLES_COUNT`) picked at random from all 90 sums of tables 2–10, with a **2-minute** clock (`Tafels::ALL_TIME_LIMIT_MS`). It uses the same template and controller as a single table. Its results are stored with table number `Tafels::ALL` (= 0, `ALL_TABLES` in JS) and show up as their own badge and row.
 - A round has ten bubbles, "multiplier × table" for multipliers 1–10 (Dutch notation: `2 × 6` belongs to *de tafel van 6*), in random order. The bubbles bob gently, and the bobbing is off under `prefers-reduced-motion`.
 - Clicking a bubble enlarges it and shows an answer field plus an on-screen keypad (0–9, ⌫, OK). The physical keyboard also works: digits, Backspace, Enter to check, Escape to close. Typing a digit while no bubble is open opens the focused bubble, or else the first remaining one, and enters that digit.
 - A correct answer pops the bubble and removes it. A wrong answer gives a friendly "try again" with a wiggle, and the pupil can retry without limit. There is no score or mistake counter.
@@ -89,8 +90,8 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - **Timer:** one minute (`TIME_LIMIT_MS`). It starts when the ready countdown ends and is shown as m:ss plus a shrinking bar. If it runs out, the pupil sees "De tijd is om! Maak de bubbels rustig af." and keeps playing.
 - When all ten bubbles are popped, a completion panel appears. Within the minute it says the pupil **passed** ("Super gedaan! … binnen een minuut geknapt!"). Otherwise it says "Alle bubbels zijn geknapt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and "Andere tafel".
 - Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
-- The time limit comes from the server (`App\Game\Tafels::TIME_LIMIT_MS` → `data-tafels-time-limit-value`), so the client's verdict and the stored result always agree.
-- **Saving:** for a logged-in player, the finished round is POSTed as JSON (`{durationMs}`) to `/rekenen/tafel/{table}/resultaat`. The server decides `passed`. Guests see a "Wil je je sterren bewaren?" link instead.
+- The time limit comes from the server (`App\Game\Tafels::timeLimitMs()` → `data-tafels-time-limit-value`), so the client's verdict and the stored result always agree.
+- **Saving:** for a logged-in player, the finished round is POSTed as JSON (`{durationMs}`) to `/rekenen/tafel/{table}/resultaat` (or `/rekenen/alle-tafels/resultaat`). The server decides `passed`. Guests see a "Wil je je sterren bewaren?" link instead.
 - **Progress:** the picker and the player page show each table's best result: ⭐ + best time when done within the minute, ✓ + best time when completed more slowly.
 - The game page sets `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
 

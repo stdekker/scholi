@@ -25,6 +25,7 @@ class TafelsResult
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Player $player;
 
+    /** 2–10, or Tafels::ALL for an "alle tafels" round. */
     #[ORM\Column(type: Types::SMALLINT)]
     private int $tableNumber;
 
@@ -42,7 +43,7 @@ class TafelsResult
         $this->player = $player;
         $this->tableNumber = $tableNumber;
         $this->durationMs = $durationMs;
-        $this->passed = Tafels::isPassed($durationMs);
+        $this->passed = Tafels::isPassed($tableNumber, $durationMs);
         $this->completedAt = $completedAt;
     }
 

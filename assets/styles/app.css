@@ -216,9 +216,18 @@ body {
     white-space: nowrap;
 }
 
+.table-picker__link--all {
+    border-color: var(--color-primary);
+}
+
 @media (min-width: 40rem) {
     .table-picker {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    /* Same size as the other tiles, centred under the 3 × 3 grid. */
+    .table-picker__item--all {
+        grid-column: 2;
     }
 
     .table-picker__link {

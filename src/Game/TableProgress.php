@@ -23,6 +23,11 @@ final readonly class TableProgress
         return Tafels::formatTime($this->bestMs);
     }
 
+    public function isAllTables(): bool
+    {
+        return Tafels::ALL === $this->table;
+    }
+
     /**
      * @param iterable<TafelsResult> $results
      *

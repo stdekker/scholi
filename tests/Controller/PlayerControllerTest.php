@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\Player;
+use App\Game\Tafels;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
 use App\Tests\Support\PlayerTestTrait;
@@ -150,9 +151,14 @@ final class PlayerControllerTest extends WebTestCase
         $this->addResult($player, 6, 45_000);
         $this->addResult($player, 7, 90_000);
         $this->addResult($player, 7, 75_000);
+        $this->addResult($player, Tafels::ALL, 130_000);
+        $this->addResult($player, 9, 50_000);
         $this->logIn($client, $token);
 
         $client->request('GET', '/speler');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(10)', 'Alle tafels');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(10) .progress-badge--done', 'Beste tijd 2:10');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(8) .progress-badge--passed', 'Binnen een minuut! Beste tijd 0:50');
 
         self::assertSelectorTextContains('.progress-list__item:nth-child(5) .progress-badge--passed', 'Beste tijd 0:45');
         self::assertSelectorTextContains('.progress-list__item:nth-child(6) .progress-badge--done', 'Beste tijd 1:15');

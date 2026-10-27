@@ -24,6 +24,7 @@ final class RekenenController extends AbstractController
     {
         return $this->render('game/rekenen/index.html.twig', [
             'tables' => Tafels::tables(),
+            'all_tables' => Tafels::ALL,
             'progress' => null !== $player ? $results->progressFor($player) : [],
         ]);
     }
@@ -31,10 +32,13 @@ final class RekenenController extends AbstractController
     #[Route('/rekenen/tafel/{table}', name: 'app_game_rekenen_tafel', requirements: ['table' => Tafels::TABLE_PATTERN], methods: ['GET'])]
     public function tafel(int $table): Response
     {
-        return $this->render('game/rekenen/tafel.html.twig', [
-            'table' => $table,
-            'time_limit_ms' => Tafels::TIME_LIMIT_MS,
-        ]);
+        return $this->renderGame($table, $this->generateUrl('app_game_rekenen_tafel_result', ['table' => $table]));
+    }
+
+    #[Route('/rekenen/alle-tafels', name: 'app_game_rekenen_alle', methods: ['GET'])]
+    public function alleTafels(): Response
+    {
+        return $this->renderGame(Tafels::ALL, $this->generateUrl('app_game_rekenen_alle_result'));
     }
 
     /**
@@ -48,6 +52,36 @@ final class RekenenController extends AbstractController
         EntityManagerInterface $entityManager,
         #[CurrentUser] ?Player $player = null,
     ): JsonResponse {
+        return $this->storeResult($table, $input, $entityManager, $player);
+    }
+
+    #[Route('/rekenen/alle-tafels/resultaat', name: 'app_game_rekenen_alle_result', methods: ['POST'], format: 'json')]
+    public function saveAlleTafelsResult(
+        #[MapRequestPayload(acceptFormat: 'json')] TafelsResultInput $input,
+        EntityManagerInterface $entityManager,
+        #[CurrentUser] ?Player $player = null,
+    ): JsonResponse {
+        return $this->storeResult(Tafels::ALL, $input, $entityManager, $player);
+    }
+
+    /**
+     * @param int $table 2–10, or Tafels::ALL
+     */
+    private function renderGame(int $table, string $saveUrl): Response
+    {
+        $timeLimitMs = Tafels::timeLimitMs($table);
+
+        return $this->render('game/rekenen/tafel.html.twig', [
+            'table' => $table,
+            'is_all' => Tafels::ALL === $table,
+            'time_limit_ms' => $timeLimitMs,
+            'time_limit' => Tafels::formatTime($timeLimitMs),
+            'save_url' => $saveUrl,
+        ]);
+    }
+
+    private function storeResult(int $table, TafelsResultInput $input, EntityManagerInterface $entityManager, ?Player $player): JsonResponse
+    {
         if (null === $player) {
             return $this->json(['error' => 'no_player'], Response::HTTP_UNAUTHORIZED);
         }
