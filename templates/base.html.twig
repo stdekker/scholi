@@ -16,7 +16,6 @@
     <body>
         <header class="site-header">
             <a class="site-header__brand" href="{{ path('app_home') }}">{{ 'app.name'|trans }}</a>
-            <div class="site-header__actions">
             {% if app.user %}
                 <a class="site-header__player" href="{{ path('app_player') }}">
                     {% if app.user.emoji is null %}<span aria-hidden="true">👤</span>{% endif %} {{ app.user.displayName }}
@@ -24,12 +23,6 @@
             {% else %}
                 <a class="site-header__player" href="{{ path('app_player_new') }}">{{ 'player.header.save_progress'|trans }}</a>
             {% endif %}
-                {# Native popover: opens and closes without JS. #}
-                <button type="button" class="site-header__player site-header__about" popovertarget="about-scholi">
-                    <span aria-hidden="true">ℹ️</span>
-                    <span class="site-header__about-label">{{ 'app.about.button'|trans }}</span>
-                </button>
-            </div>
         </header>
         <div class="about-popover" id="about-scholi" popover role="dialog" aria-labelledby="about-scholi-title">
             <h2 class="about-popover__title" id="about-scholi-title">{{ 'app.about.title'|trans }}</h2>
@@ -39,5 +32,11 @@
         <main class="site-main">
             {% block body %}{% endblock %}
         </main>
+        {# Bottom-left of the page (not fixed, so it never covers the game). Native popover: no JS needed. #}
+        <footer class="site-footer">
+            <button type="button" class="about-button" popovertarget="about-scholi">
+                <span aria-hidden="true">ℹ️</span> {{ 'app.about.button'|trans }}
+            </button>
+        </footer>
     </body>
 </html>
