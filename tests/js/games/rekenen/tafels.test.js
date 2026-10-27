@@ -11,6 +11,7 @@ import {
     isTimeUp,
     remainingTasks,
     removeLastDigit,
+    roundDuration,
     solveTask,
     startTimer,
     TIME_LIMIT_MS,
@@ -134,6 +135,23 @@ describe('timer', () => {
 
         expect(round.finishedAt).toBeNull();
         expect(isPassed(round)).toBe(false);
+    });
+
+    it('uses a custom time limit', () => {
+        const round = startTimer(createRound(4, Math.random, 30_000), 0);
+
+        expect(round.timeLimitMs).toBe(30_000);
+        expect(timeLeft(round, 10_000)).toBe(20_000);
+        expect(isPassed(solveAll(round, 30_000))).toBe(true);
+        expect(isPassed(solveAll(round, 30_001))).toBe(false);
+    });
+
+    it('reports the round duration once finished', () => {
+        const started = startTimer(createRound(4), 2_000);
+
+        expect(roundDuration(createRound(4))).toBeNull();
+        expect(roundDuration(started)).toBeNull();
+        expect(roundDuration(solveAll(started, 47_500))).toBe(45_500);
     });
 
     it.each([

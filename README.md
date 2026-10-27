@@ -12,6 +12,7 @@ Requires [DDEV](https://docs.ddev.com/).
 ddev start
 ddev composer install
 ddev npm install
+ddev console doctrine:migrations:migrate -n
 ```
 
 Open https://scholi.ddev.site

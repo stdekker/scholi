@@ -23,6 +23,10 @@ game:
             done_late: Alle bubbels zijn geknapt. Iets sneller de volgende keer!
             again: Nog een keer
             other_table: Andere tafel
+            saved: Je resultaat is bewaard.
+            save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
+            guest: Wil je je sterren bewaren?
+            guest_link: Maak een speler.
             ready:
                 title: Ben je er klaar voor?
                 text: Knap alle bubbels binnen de tijd.
@@ -34,3 +38,38 @@ game:
             keypad:
                 erase: Wissen
                 check: OK
+
+player:
+    header:
+        save_progress: Voortgang bewaren
+    new:
+        title: Maak je speler
+        intro: Dan bewaren we hoe goed je de tafels kent. Je hoeft alleen een naam te kiezen.
+        name_label: Jouw spelersnaam
+        name_help: Je mag deze grappige naam houden of zelf een naam verzinnen. Gebruik niet je echte naam.
+        submit: Maak mijn speler
+    show:
+        title: 'Hoi %name%!'
+        created: Je speler is gemaakt! Bewaar je spelerslink hieronder goed.
+    link:
+        title: Jouw spelerslink
+        intro: Met deze link kom je terug bij je speler, ook op een andere computer of tablet. Deze computer onthoudt hem voor je.
+        copy: Kopieer link
+        copied: De link is gekopieerd!
+        copy_failed: Kopiëren lukte niet. De link is geselecteerd, kopieer hem zelf.
+        warning: Laat deze link alleen aan je ouders of je juf of meester zien. Wie de link heeft, speelt als jou. Kwijt is kwijt!
+    progress:
+        title: Jouw tafels
+        not_yet: Nog niet geoefend
+        passed: 'Binnen een minuut! Beste tijd %time%'
+        done: 'Gehaald. Beste tijd %time%'
+        play: Tafels oefenen
+    logout:
+        title: Uitloggen
+        intro: Speel je op een computer van school? Log dan uit. Deze computer vergeet je speler. Met je spelerslink kom je weer terug.
+        submit: Uitloggen
+    unknown:
+        title: Deze spelerslink kennen we niet
+        intro: Misschien is de link niet helemaal goed overgenomen. Kijk de link nog eens na, of maak een nieuwe speler.
+        new: Maak een nieuwe speler
+        home: Naar de spellen

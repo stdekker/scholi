@@ -12,9 +12,9 @@ import {
     READY_COUNTDOWN_SECONDS,
     remainingTasks,
     removeLastDigit,
+    roundDuration,
     solveTask,
     startTimer,
-    TIME_LIMIT_MS,
     timeLeft,
 } from '../games/rekenen/tafels.js';
 
@@ -52,10 +52,15 @@ export default class extends Controller {
         'readyTime',
         'readyButton',
         'countdown',
+        'savedMessage',
+        'saveFailedMessage',
     ];
 
     static values = {
         table: Number,
+        timeLimit: Number,
+        // Empty for guests: only logged-in players get their results saved.
+        saveUrl: String,
         sumLabel: String,
         correct: String,
         tryAgain: String,
@@ -77,7 +82,7 @@ export default class extends Controller {
 
     start() {
         this.stopClock();
-        this.round = createRound(this.tableValue);
+        this.round = createRound(this.tableValue, Math.random, this.timeLimitValue);
         this.activeBubble = null;
         this.timerTarget.classList.remove('round-timer--expired');
         this.renderClock();
@@ -87,6 +92,8 @@ export default class extends Controller {
         this.fieldTarget.replaceChildren();
         this.keypadTarget.hidden = true;
         this.completeTarget.hidden = true;
+        this.savedMessageTargets.forEach((message) => (message.hidden = true));
+        this.saveFailedMessageTargets.forEach((message) => (message.hidden = true));
         this.statusTarget.textContent = '';
         this.updateProgress();
     }
@@ -97,7 +104,7 @@ export default class extends Controller {
 
     showReady() {
         this.readyDone = false;
-        this.readyTimeTarget.textContent = formatTime(TIME_LIMIT_MS);
+        this.readyTimeTarget.textContent = formatTime(this.round.timeLimitMs);
         this.readyButtonTarget.hidden = false;
         this.countdownTarget.textContent = '';
         if (!this.readyDialogTarget.open) {
@@ -391,6 +398,30 @@ export default class extends Controller {
         this.lateMessageTarget.hidden = passed;
         this.completeTarget.hidden = false;
         this.restartTarget.focus();
+        this.saveResult();
+    }
+
+    async saveResult() {
+        const durationMs = roundDuration(this.round);
+        if (!this.saveUrlValue || durationMs === null) {
+            return;
+        }
+
+        try {
+            const response = await fetch(this.saveUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ durationMs }),
+                credentials: 'same-origin',
+                keepalive: true,
+            });
+            if (!response.ok) {
+                throw new Error(`Saving the result failed: HTTP ${response.status}`);
+            }
+            this.savedMessageTargets.forEach((message) => (message.hidden = false));
+        } catch {
+            this.saveFailedMessageTargets.forEach((message) => (message.hidden = false));
+        }
     }
 
     /** Starts the round's clock (once per round). */
@@ -422,7 +453,7 @@ export default class extends Controller {
     renderClock(now = Date.now()) {
         const left = timeLeft(this.round, now);
         this.timeTarget.textContent = formatTime(left);
-        this.timerTarget.style.setProperty('--time-left', String(left / TIME_LIMIT_MS));
+        this.timerTarget.style.setProperty('--time-left', String(left / this.round.timeLimitMs));
     }
 
     updateProgress() {

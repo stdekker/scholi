@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'player.new.title'|trans }} – {{ parent() }}{% endblock %}
+
+{% block body %}
+    <section class="player-card">
+        <h1>{{ 'player.new.title'|trans }}</h1>
+        <p>{{ 'player.new.intro'|trans }}</p>
+
+        {{ form_start(form, {attr: {class: 'player-form'}}) }}
+            {{ form_row(form.name) }}
+            <button type="submit" class="action-button">{{ 'player.new.submit'|trans }}</button>
+        {{ form_end(form) }}
+    </section>
+{% endblock %}

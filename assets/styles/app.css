@@ -12,6 +12,8 @@
     --color-primary-contrast: #ffffff;
     --color-accent: #f59e0b;
     --color-warning: #b45309;
+    --color-success: #166534;
+    --color-success-surface: #dcfce7;
     --color-border: #e5e7eb;
 
     --font-body: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -65,8 +67,36 @@ body {
 /* Site layout */
 
 .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-2);
     padding: var(--space-2) var(--space-3);
     background-color: var(--color-primary);
+}
+
+.site-header__player {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-2);
+    border: 2px solid var(--color-primary-contrast);
+    border-radius: var(--radius);
+    color: var(--color-primary-contrast);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+/* Text for screen readers only. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 .site-header__brand {
@@ -151,8 +181,10 @@ body {
 
 .table-picker__link {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--space-1);
     min-height: 5rem;
     padding: var(--space-2);
     border: 3px solid var(--color-border);
@@ -529,4 +561,145 @@ body {
             scale: 1.4;
         }
     }
+}
+
+/* Progress badges (picker + player page) */
+
+.progress-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 0.15em 0.6em;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.progress-badge--passed {
+    background-color: var(--color-success-surface);
+    color: var(--color-success);
+}
+
+.progress-badge--done {
+    background-color: var(--color-border);
+    color: var(--color-text);
+}
+
+/* Player pages */
+
+.player-card {
+    margin-block-end: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+}
+
+.player-card h1,
+.player-card h2 {
+    margin-block-start: 0;
+}
+
+.player-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.notice {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius);
+    font-weight: 700;
+}
+
+.notice--success {
+    background-color: var(--color-success-surface);
+    color: var(--color-success);
+}
+
+.player-form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.player-form label {
+    display: block;
+    font-weight: 700;
+}
+
+.player-form input[type='text'] {
+    width: min(100%, 22rem);
+    min-height: var(--touch-target);
+    padding: 0 var(--space-1);
+    border: 3px solid var(--color-border);
+    border-radius: 0.5rem;
+    font: inherit;
+}
+
+.player-form .help-text,
+.player-form [id$='_help'] {
+    margin-block-start: 0.25rem;
+    font-size: 1rem;
+}
+
+.player-link {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.player-link__url {
+    flex: 1 1 16rem;
+    min-width: 0;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-1);
+    border: 3px solid var(--color-border);
+    border-radius: 0.5rem;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1rem;
+}
+
+.player-link__status {
+    min-height: 1.5em;
+    margin-block: var(--space-1) 0;
+    font-weight: 700;
+}
+
+.player-link__warning {
+    color: var(--color-warning);
+    font-weight: 700;
+}
+
+.progress-list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    list-style: none;
+}
+
+.progress-list__item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1);
+    padding-block: var(--space-1);
+    border-block-end: 2px solid var(--color-border);
+}
+
+.progress-list__table {
+    font-weight: 700;
+}
+
+.progress-list__status {
+    font-size: 1rem;
+}
+
+.round-complete__note {
+    margin: 0;
+    font-size: 1.1rem;
 }

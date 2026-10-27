@@ -16,7 +16,8 @@ Game specifications and mechanics are **not defined yet**. Don't invent game rul
 | Backend | Symfony **7.4 LTS** (webapp pack: Twig, Doctrine ORM + Migrations, Security, Forms, Mailer, Messenger) |
 | Frontend | Symfony UX: **AssetMapper** + **Stimulus** + **Turbo** (native ES modules, no bundler/build step) |
 | Styling | Plain semantic CSS in `assets/styles/` (no Tailwind or utility frameworks) |
-| PHP quality | PHPUnit 13, PHPStan (level max + Symfony extension), PHP-CS-Fixer (`@Symfony`) |
+| Accounts | Link-based players (no passwords, no e-mail); stateless firewall + cookie, see **Players** |
+| PHP quality | PHPUnit 13 (+ DAMA doctrine-test-bundle), PHPStan (level max + Symfony + Doctrine extensions), PHP-CS-Fixer (`@Symfony`) |
 | JS quality | ESLint (flat config), Prettier, Vitest |
 
 Node/npm is used **only for dev tooling** (lint, format, tests). Runtime JS dependencies are added with `importmap:require`, never with npm.
@@ -30,36 +31,45 @@ PHP, Composer, Node and the database run in containers. **Never** run `php`, `co
 | Task | Command |
 |---|---|
 | Start / stop | `ddev start` / `ddev stop` |
-| Install dependencies | `ddev composer install && ddev npm install` |
+| Install dependencies | `ddev composer install && ddev npm install && ddev console doctrine:migrations:migrate -n` |
 | Symfony console | `ddev console <command>` |
 | Composer | `ddev composer <args>` |
 | Add a frontend package | `ddev console importmap:require <package>` |
 | npm (dev tools only) | `ddev npm <args>` |
 | **All quality checks** | `ddev qa` |
-| PHP only | `ddev composer qa` (or `cs`, `cs:fix`, `phpstan`, `test`) |
+| PHP only | `ddev composer qa` (or `cs`, `cs:fix`, `phpstan`, `test`; `test` first migrates and validates the test DB) |
 | JS only | `ddev npm run lint`, `ddev npm run format`, `ddev npm test` |
 | Database query | `ddev mysql -e 'SELECT 1'` |
-| Migrations | `ddev console make:migration`, `ddev console doctrine:migrations:migrate` |
+| Migrations | `ddev console make:migration`, `ddev console doctrine:migrations:migrate` (files in `src/Migrations/`) |
 | Site URL | `ddev launch --print-url` → https://scholi.ddev.site |
 | Mail (Mailpit) | `ddev launch -m --print-url` |
 
 DDEV generates `.env.local` itself (database and mailer settings). Don't commit it. The test env doesn't read `.env.local`, so the committed defaults in `.env` also point at the DDEV database.
+
+Tests use the `db_test` database, which a `post-start` hook in `.ddev/config.yaml` creates (the `db` user can't create databases). DAMA wraps every test in a transaction that is rolled back.
 
 ## Project layout
 
 ```
 src/Controller/HomeController.php           # / – subject overview
 src/Controller/Game/<Subject>Controller.php  # one controller per subject, e.g. RekenenController (/rekenen/…)
+src/Controller/PlayerController.php          # /speler, /speler/nieuw, /speler/{token}
+src/Entity/, src/Repository/                 # Doctrine: Player, TafelsResult
+src/Game/                                    # server-side game rules (Tafels: tables, TIME_LIMIT_MS), progress, input DTOs
+src/Security/                                # player link token, cookie, authenticator
+src/Player/                                  # FunNameGenerator
+src/Migrations/                              # Doctrine migrations
 templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body)
 templates/home/                              # homepage
 templates/game/<subject>/                    # subject + game pages, e.g. game/rekenen/tafel.html.twig
+templates/player/                            # registration, player page, progress badge
 assets/app.js                                # AssetMapper entrypoint
 assets/controllers/<game>_controller.js      # Stimulus controllers: DOM wiring only, e.g. tafels_controller.js
 assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js
 assets/games/shared/                         # pure helpers shared by games (random.js: randomInt, shuffle)
 assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
 translations/messages.nl.yaml                # all user-facing text
-tests/Controller/                            # PHPUnit functional tests
+tests/Controller/, tests/Unit/               # PHPUnit functional and unit tests (tests/Support: helpers)
 tests/js/games/                              # Vitest unit tests, mirroring assets/games/
 .ddev/commands/web/qa                        # `ddev qa`
 ```
@@ -78,7 +88,20 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - **Timer:** one minute (`TIME_LIMIT_MS`). It starts when the ready countdown ends and is shown as m:ss plus a shrinking bar. If it runs out, the pupil sees "De tijd is om! Maak de bubbels rustig af." and keeps playing.
 - When all ten bubbles are popped, a completion panel appears. Within the minute it says the pupil **passed** ("Super gedaan! … binnen een minuut geknapt!"). Otherwise it says "Alle bubbels zijn geknapt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and "Andere tafel".
 - Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
+- The time limit comes from the server (`App\Game\Tafels::TIME_LIMIT_MS` → `data-tafels-time-limit-value`), so the client's verdict and the stored result always agree.
+- **Saving:** for a logged-in player, the finished round is POSTed as JSON (`{durationMs}`) to `/rekenen/tafel/{table}/resultaat`. The server decides `passed`. Guests see a "Wil je je sterren bewaren?" link instead.
+- **Progress:** the picker and the player page show each table's best result: ⭐ + best time when done within the minute, ✓ + best time when completed more slowly.
 - The game page sets `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
+
+## Players (accounts)
+
+- **No passwords and no e-mail.** Registering (`/speler/nieuw`) only asks for a name, pre-filled with a fun suggestion ("Vrolijke Vos", `App\Player\FunNameGenerator`; these word lists are content data, not translations).
+- The account *is* its **player link** `/speler/{token}`: 32 random alphanumeric characters (`App\Security\PlayerToken`). Only the SHA-256 hash is stored, so a lost link can't be recovered. The UI tells pupils to keep it and to share it only with parents or the teacher.
+- The browser remembers the token in the `scholi_player` cookie (HttpOnly, SameSite=Lax, 400 days, refreshed on every visit). `PlayerCookieAuthenticator` logs the player in on each request; the `main` firewall is stateless and the app uses no session.
+- An unknown or invalid cookie never blocks anyone: the visitor continues as a guest and `PlayerCookieSubscriber` clears the cookie. Opening a valid link sets the cookie (switching player if needed); an unknown link gives a friendly 404.
+- "Uitloggen" (POST with CSRF) deletes the cookie, for shared school computers.
+- Never render the player link as an `<a>` (Turbo prefetches links). Show it in a readonly input with a copy button.
+- JSON endpoints that change data must accept JSON only (`#[MapRequestPayload(acceptFormat: 'json')]`). Together with the SameSite=Lax cookie this is the CSRF protection. HTML forms use Symfony's (stateless) CSRF tokens.
 
 ### Frontend architecture rule
 
@@ -106,10 +129,11 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 - Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS locally (`assets/vendor/`, installed with `importmap:install`).
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
+- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name), the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. Nothing else: no e-mail, no IP addresses, no tracking.
 
 ## Code style
 
-- PHP: `declare(strict_types=1);` in new files, `final` classes by default, attribute routing, constructor injection. Follow `@Symfony` CS rules. PHPStan must pass at level max, and you may not lower the level or add baseline entries to get it passing.
+- PHP: `declare(strict_types=1);` in new files, `final` classes by default (except Doctrine entities, which need proxies), attribute routing, constructor injection. Follow `@Symfony` CS rules. PHPStan must pass at level max, and you may not lower the level or add baseline entries to get it passing.
 - CSS: semantic class names in BEM style (`.game-card`, `.game-card__title`). Use the design tokens in `:root`. No utility-class piles.
 - JS: ES modules, Prettier formatting (single quotes, 4 spaces, width 100), JSDoc on exported functions.
 

@@ -13,6 +13,8 @@
     <section class="bubble-game"
         data-controller="tafels"
         data-tafels-table-value="{{ table }}"
+        data-tafels-time-limit-value="{{ time_limit_ms }}"
+        data-tafels-save-url-value="{{ app.user ? path('app_game_rekenen_tafel_result', {table: table}) : '' }}"
         data-tafels-sum-label-value="{{ 'game.rekenen.tafels.sum_label'|trans }}"
         data-tafels-correct-value="{{ 'game.rekenen.tafels.correct'|trans }}"
         data-tafels-try-again-value="{{ 'game.rekenen.tafels.try_again'|trans }}"
@@ -84,6 +86,15 @@
         <div class="round-complete" data-tafels-target="complete" hidden>
             <p class="round-complete__message" data-tafels-target="passedMessage">{{ 'game.rekenen.tafels.done'|trans({'%table%': table}) }}</p>
             <p class="round-complete__message" data-tafels-target="lateMessage" hidden>{{ 'game.rekenen.tafels.done_late'|trans({'%table%': table}) }}</p>
+            {% if app.user %}
+                <p class="round-complete__note" data-tafels-target="savedMessage" hidden>{{ 'game.rekenen.tafels.saved'|trans }}</p>
+                <p class="round-complete__note" data-tafels-target="saveFailedMessage" hidden>{{ 'game.rekenen.tafels.save_failed'|trans }}</p>
+            {% else %}
+                <p class="round-complete__note">
+                    {{ 'game.rekenen.tafels.guest'|trans }}
+                    <a href="{{ path('app_player_new') }}">{{ 'game.rekenen.tafels.guest_link'|trans }}</a>
+                </p>
+            {% endif %}
             <div class="round-complete__actions">
                 <button type="button" class="action-button" data-action="tafels#restart" data-tafels-target="restart">
                     {{ 'game.rekenen.tafels.again'|trans }}

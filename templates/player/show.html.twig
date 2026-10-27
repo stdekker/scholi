@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ player.name }} – {{ parent() }}{% endblock %}
+
+{% block meta %}
+    {# Progress changes after every round; never show a stale copy from Turbo's cache. #}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
+{% block body %}
+    <h1>{{ 'player.show.title'|trans({'%name%': player.name}) }}</h1>
+
+    {% if is_new %}
+        <p class="notice notice--success">{{ 'player.show.created'|trans }}</p>
+    {% endif %}
+
+    <section class="player-card" data-controller="clipboard"
+        data-clipboard-copied-value="{{ 'player.link.copied'|trans }}"
+        data-clipboard-failed-value="{{ 'player.link.copy_failed'|trans }}">
+        <h2>{{ 'player.link.title'|trans }}</h2>
+        <p>{{ 'player.link.intro'|trans }}</p>
+        {# Not a link on purpose: following it would only re-login, and Turbo may prefetch links. #}
+        <div class="player-link">
+            <label class="visually-hidden" for="player-link">{{ 'player.link.title'|trans }}</label>
+            <input type="text" id="player-link" class="player-link__url" value="{{ link }}" readonly
+                data-clipboard-target="source" data-action="focus->clipboard#select">
+            <button type="button" class="action-button" data-action="clipboard#copy">{{ 'player.link.copy'|trans }}</button>
+        </div>
+        <p class="player-link__status" role="status" data-clipboard-target="status"></p>
+        <p class="player-link__warning">{{ 'player.link.warning'|trans }}</p>
+    </section>
+
+    <section class="player-card">
+        <h2>{{ 'player.progress.title'|trans }}</h2>
+        <ul class="progress-list">
+            {% for table in tables %}
+                {% set result = progress[table] ?? null %}
+                <li class="progress-list__item">
+                    <span class="progress-list__table">{{ 'game.rekenen.table'|trans({'%table%': table}) }}</span>
+                    {% if result is null %}
+                        <span class="progress-list__status">{{ 'player.progress.not_yet'|trans }}</span>
+                    {% else %}
+                        {{ include('player/_progress_badge.html.twig', {result: result}) }}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+        <a class="action-button" href="{{ path('app_game_rekenen') }}">{{ 'player.progress.play'|trans }}</a>
+    </section>
+
+    <section class="player-card">
+        <h2>{{ 'player.logout.title'|trans }}</h2>
+        <p>{{ 'player.logout.intro'|trans }}</p>
+        <form method="post" action="{{ logout_path('main') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}" data-controller="csrf-protection">
+            <button type="submit" class="action-button action-button--secondary">{{ 'player.logout.submit'|trans }}</button>
+        </form>
+    </section>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'player.unknown.title'|trans }} – {{ parent() }}{% endblock %}
+
+{% block body %}
+    <section class="player-card">
+        <h1>{{ 'player.unknown.title'|trans }}</h1>
+        <p>{{ 'player.unknown.intro'|trans }}</p>
+        <p class="player-card__actions">
+            <a class="action-button" href="{{ path('app_player_new') }}">{{ 'player.unknown.new'|trans }}</a>
+            <a class="action-button action-button--secondary" href="{{ path('app_home') }}">{{ 'player.unknown.home'|trans }}</a>
+        </p>
+    </section>
+{% endblock %}

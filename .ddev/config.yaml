@@ -306,3 +306,9 @@ corepack_enable: false
 ## Un-comment to consume async message.
 #    post-start:
 #    - exec: symfony run --daemon --watch=config,src,templates,vendor bin/console messenger:consume async -vv
+
+# Test database for PHPUnit (Doctrine appends "_test"); the db user may not create databases itself.
+hooks:
+    post-start:
+        - exec: mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS db_test; GRANT ALL ON db_test.* TO 'db'@'%';"
+          service: db

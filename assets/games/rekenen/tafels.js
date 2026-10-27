@@ -16,6 +16,7 @@ import { shuffle } from '../shared/random.js';
 export const MIN_TABLE = 2;
 export const MAX_TABLE = 10;
 export const ANSWER_MAX_LENGTH = 3;
+/** Default only: the page passes the server's limit (App\Game\Tafels::TIME_LIMIT_MS) to createRound. */
 export const TIME_LIMIT_MS = 60_000;
 export const READY_COUNTDOWN_SECONDS = 3;
 
@@ -32,6 +33,7 @@ export const READY_COUNTDOWN_SECONDS = 3;
  * @typedef {object} Round
  * @property {number} table
  * @property {Task[]} tasks
+ * @property {number} timeLimitMs
  * @property {number | null} startedAt timestamp (ms) the clock started, null before that
  * @property {number | null} finishedAt timestamp (ms) the last task was solved
  */
@@ -41,9 +43,10 @@ export const READY_COUNTDOWN_SECONDS = 3;
  *
  * @param {number} table 2–10
  * @param {() => number} [random] source of randomness in [0, 1)
+ * @param {number} [timeLimitMs]
  * @returns {Round}
  */
-export function createRound(table, random = Math.random) {
+export function createRound(table, random = Math.random, timeLimitMs = TIME_LIMIT_MS) {
     if (!Number.isInteger(table) || table < MIN_TABLE || table > MAX_TABLE) {
         throw new RangeError(`Table must be an integer from ${MIN_TABLE} to ${MAX_TABLE}`);
     }
@@ -54,7 +57,13 @@ export function createRound(table, random = Math.random) {
         return { id: multiplier, multiplier, table, answer: multiplier * table, solved: false };
     });
 
-    return { table, tasks: shuffle(tasks, random), startedAt: null, finishedAt: null };
+    return {
+        table,
+        tasks: shuffle(tasks, random),
+        timeLimitMs,
+        startedAt: null,
+        finishedAt: null,
+    };
 }
 
 /**
@@ -131,12 +140,12 @@ export function startTimer(round, now) {
  */
 export function timeLeft(round, now) {
     if (round.startedAt === null) {
-        return TIME_LIMIT_MS;
+        return round.timeLimitMs;
     }
 
     const elapsed = (round.finishedAt ?? now) - round.startedAt;
 
-    return Math.max(0, TIME_LIMIT_MS - elapsed);
+    return Math.max(0, round.timeLimitMs - elapsed);
 }
 
 /**
@@ -158,8 +167,22 @@ export function isPassed(round) {
     return (
         round.startedAt !== null &&
         round.finishedAt !== null &&
-        round.finishedAt - round.startedAt <= TIME_LIMIT_MS
+        round.finishedAt - round.startedAt <= round.timeLimitMs
     );
+}
+
+/**
+ * How long the pupil took for the whole round, or null while it is not finished.
+ *
+ * @param {Round} round
+ * @returns {number | null}
+ */
+export function roundDuration(round) {
+    if (round.startedAt === null || round.finishedAt === null) {
+        return null;
+    }
+
+    return round.finishedAt - round.startedAt;
 }
 
 /**
