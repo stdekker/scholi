@@ -8,5 +8,20 @@ home:
 game:
     rekenen:
         title: Rekenen
-        description: Oefen met plussen, minnen en meer.
-        loading: Het spel wordt geladen…
+        description: Oefen de tafels van 2 tot en met 10.
+        intro: Welke tafel wil je oefenen?
+        table: Tafel van %table%
+        tafels:
+            title: De tafel van %table%
+            intro: Klik op een bubbel en typ het antwoord.
+            sum_label: '%multiplier% keer %table%'
+            answer: Jouw antwoord
+            correct: 'Goed zo! %multiplier% × %table% = %answer%'
+            try_again: Bijna! Probeer het nog eens.
+            remaining: 'Bubbels over: %count%'
+            done: Super gedaan! Je hebt alle bubbels van de tafel van %table% geknapt!
+            again: Nog een keer
+            other_table: Andere tafel
+            keypad:
+                erase: Wissen
+                check: OK

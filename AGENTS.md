@@ -48,25 +48,40 @@ DDEV generates `.env.local` itself (database and mailer settings). Don't commit 
 ## Project layout
 
 ```
-src/Controller/HomeController.php        # / – game overview
-src/Controller/Game/<Game>Controller.php  # one controller per game, e.g. RekenenController (/rekenen)
-templates/base.html.twig                  # layout (lang="nl")
-templates/home/                           # homepage
-templates/game/<game>/                    # game pages
-assets/app.js                             # AssetMapper entrypoint
-assets/controllers/<game>_controller.js   # Stimulus controllers: DOM wiring only
-assets/games/<game>/                      # pure game logic (ES modules)
-assets/styles/app.css                     # global styles + design tokens (CSS custom properties)
-translations/messages.nl.yaml             # all user-facing text
-tests/Controller/                         # PHPUnit functional tests
-tests/js/games/<game>/                    # Vitest unit tests for game logic
-.ddev/commands/web/qa                     # `ddev qa`
+src/Controller/HomeController.php           # / – subject overview
+src/Controller/Game/<Subject>Controller.php  # one controller per subject, e.g. RekenenController (/rekenen/…)
+templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body)
+templates/home/                              # homepage
+templates/game/<subject>/                    # subject + game pages, e.g. game/rekenen/tafel.html.twig
+assets/app.js                                # AssetMapper entrypoint
+assets/controllers/<game>_controller.js      # Stimulus controllers: DOM wiring only, e.g. tafels_controller.js
+assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js
+assets/games/shared/                         # pure helpers shared by games (random.js: randomInt, shuffle)
+assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
+translations/messages.nl.yaml                # all user-facing text
+tests/Controller/                            # PHPUnit functional tests
+tests/js/games/                              # Vitest unit tests, mirroring assets/games/
+.ddev/commands/web/qa                        # `ddev qa`
 ```
+
+A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
+
+## Games
+
+### Rekenen › Tafels (bubbels)
+
+- `/rekenen` lists the tables 2–10. `/rekenen/tafel/{2..10}` is the game; other values give a 404.
+- A round has ten bubbles, "multiplier × table" for multipliers 1–10 (Dutch notation: `2 × 6` belongs to *de tafel van 6*), in random order. The bubbles bob gently, and the bobbing is off under `prefers-reduced-motion`.
+- Clicking a bubble enlarges it and shows an answer field plus an on-screen keypad (0–9, ⌫, OK). The physical keyboard also works: digits, Backspace, Enter to check, Escape to close.
+- A correct answer pops the bubble and removes it. A wrong answer gives a friendly "try again" with a wiggle, and the pupil can retry without limit. There is no score, timer or mistake counter.
+- When all ten bubbles are popped, a completion panel offers "Nog een keer" (new round) and "Andere tafel".
+- Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
+- The game page sets `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
 
 ### Frontend architecture rule
 
 - **Game logic** lives in `assets/games/<game>/*.js`. These are pure ES modules: no DOM access, no bare imports (no `@hotwired/...` or other importmap packages), and only relative imports. Inject randomness and time as parameters so the code is deterministic in tests.
-- **Stimulus controllers** in `assets/controllers/` import that logic with a relative path (`../games/<game>/index.js`). They only connect the DOM to it: targets, actions, rendering.
+- **Stimulus controllers** in `assets/controllers/` import that logic with a relative path (e.g. `../games/rekenen/tafels.js`). They only connect the DOM to it: targets, actions, rendering.
 - With this split, all game logic can be tested with Vitest in Node without a browser or importmap.
 - JS tests live in `tests/js/`, never in `assets/`, because AssetMapper serves everything under `assets/` publicly.
 
@@ -105,9 +120,10 @@ tests/js/games/<game>/                    # Vitest unit tests for game logic
 
 ## Adding a new game (checklist)
 
-1. `src/Controller/Game/<Name>Controller.php` with a Dutch route (e.g. `/taal`, route name `app_game_<name>`).
-2. `templates/game/<name>/index.html.twig` that mounts `data-controller="<name>"`.
-3. `assets/controllers/<name>_controller.js` (thin) + `assets/games/<name>/index.js` (logic).
-4. `tests/js/games/<name>/*.test.js` + a smoke-test entry for the new URL.
-5. Translation keys under `game.<name>.*` and a card on the homepage (`templates/home/index.html.twig`).
-6. Run `ddev qa`.
+1. A Dutch route in the subject's controller (`src/Controller/Game/<Subject>Controller.php`), or a new subject controller plus a card on the homepage (`templates/home/index.html.twig`).
+2. `templates/game/<subject>/<game>.html.twig` that mounts `data-controller="<game>"`.
+3. `assets/controllers/<game>_controller.js` (thin) + `assets/games/<subject>/<game>.js` (logic).
+4. `tests/js/games/<subject>/<game>.test.js` + functional tests for the new URLs.
+5. Translation keys under `game.<subject>.<game>.*`.
+6. Describe the mechanics under **Games** in this file.
+7. Run `ddev qa`.

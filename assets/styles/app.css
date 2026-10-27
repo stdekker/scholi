@@ -51,6 +51,7 @@ body {
     *::before,
     *::after {
         animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
@@ -108,10 +109,284 @@ body {
     font-weight: 700;
 }
 
-/* Game screen */
+/* Shared buttons */
 
-.game-board {
-    padding: var(--space-3);
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target);
+    padding: var(--space-1) var(--space-3);
+    border: 3px solid var(--color-primary);
+    border-radius: var(--radius);
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.action-button--secondary {
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+}
+
+/* Rekenen: table picker */
+
+.table-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.table-picker__link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 5rem;
+    padding: var(--space-2);
+    border: 3px solid var(--color-border);
     border-radius: var(--radius);
     background-color: var(--color-surface);
+    color: inherit;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+}
+
+.table-picker__link:hover {
+    border-color: var(--color-primary);
+}
+
+/* Rekenen: tafels bubbles */
+
+.bubble-game__header h1 {
+    margin-block-end: var(--space-1);
+}
+
+.bubble-game__progress {
+    font-weight: 700;
+}
+
+.bubble-game__status {
+    min-height: 1.5em;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.bubble-field {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin: 0;
+    padding: var(--space-3) 0;
+    list-style: none;
+}
+
+.bubble {
+    --bubble-size: 8.5rem;
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: var(--bubble-size);
+    height: var(--bubble-size);
+    border: 3px solid hsl(var(--bubble-hue) 70% 70%);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 22% 18%, rgb(255 255 255 / 0.9) 0 6%, transparent 7%),
+        radial-gradient(
+            circle at 50% 50%,
+            hsl(var(--bubble-hue) 90% 95%),
+            hsl(var(--bubble-hue) 80% 82%)
+        );
+    box-shadow: inset -6px -8px 16px hsl(var(--bubble-hue) 60% 70% / 0.6);
+    transition: scale 0.2s ease;
+}
+
+.bubble__sum {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.bubble__answer {
+    width: 4.5ch;
+    margin-block-end: var(--space-2);
+    padding: 0.1em 0.25em;
+    border: 3px solid var(--color-primary);
+    border-radius: 0.5rem;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.bubble--active {
+    z-index: 1;
+    scale: 1.2;
+    box-shadow:
+        inset -6px -8px 16px hsl(var(--bubble-hue) 60% 70% / 0.6),
+        0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.bubble--active .bubble__sum {
+    height: auto;
+    cursor: default;
+}
+
+.bubble--active .bubble__placeholder {
+    display: none;
+}
+
+.bubble--wrong {
+    animation: bubble-wiggle 0.4s ease;
+}
+
+.bubble--popping {
+    pointer-events: none;
+    animation: bubble-pop 0.35s ease-out forwards;
+}
+
+@keyframes bubble-wiggle {
+    0%,
+    100% {
+        rotate: 0deg;
+    }
+
+    25% {
+        rotate: -6deg;
+    }
+
+    75% {
+        rotate: 6deg;
+    }
+}
+
+@keyframes bubble-pop {
+    to {
+        opacity: 0;
+        scale: 1.6;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .bubble:not(.bubble--active, .bubble--wrong, .bubble--popping) {
+        animation: bubble-bob 3s ease-in-out var(--bubble-delay, 0s) infinite;
+    }
+
+    @keyframes bubble-bob {
+        0%,
+        100% {
+            translate: 0 0;
+        }
+
+        50% {
+            translate: 0 -0.6rem;
+        }
+    }
+}
+
+.keypad {
+    position: sticky;
+    bottom: var(--space-2);
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-1);
+    max-width: 18rem;
+    margin-inline: auto;
+    padding: var(--space-2);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+}
+
+.keypad[hidden] {
+    display: none;
+}
+
+.keypad__key {
+    min-height: 3.5rem;
+    border: 2px solid var(--color-border);
+    border-radius: 0.75rem;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.keypad__key:active {
+    background-color: var(--color-border);
+}
+
+.keypad__key--check {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+}
+
+.round-complete {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-3);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    text-align: center;
+}
+
+.round-complete[hidden] {
+    display: none;
+}
+
+.round-complete__message {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.round-complete__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+@media (max-width: 30rem) {
+    .bubble {
+        --bubble-size: 7rem;
+    }
+
+    .bubble__sum,
+    .bubble__answer {
+        font-size: 1.35rem;
+    }
 }

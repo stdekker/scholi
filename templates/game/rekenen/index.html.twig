@@ -4,8 +4,15 @@
 
 {% block body %}
     <h1>{{ 'game.rekenen.title'|trans }}</h1>
+    <p>{{ 'game.rekenen.intro'|trans }}</p>
 
-    <section class="game-board" data-controller="rekenen" aria-live="polite">
-        <p>{{ 'game.rekenen.loading'|trans }}</p>
-    </section>
+    <ul class="table-picker">
+        {% for table in tables %}
+            <li>
+                <a class="table-picker__link" href="{{ path('app_game_rekenen_tafel', {table: table}) }}">
+                    {{ 'game.rekenen.table'|trans({'%table%': table}) }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
 {% endblock %}

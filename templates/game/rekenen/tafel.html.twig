@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+
+{% set title = 'game.rekenen.tafels.title'|trans({'%table%': table}) %}
+
+{% block title %}{{ title }} – {{ parent() }}{% endblock %}
+
+{% block meta %}
+    {# The board is built by JS; never restore a half-played round from Turbo's cache. #}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
+{% block body %}
+    <section class="bubble-game"
+        data-controller="tafels"
+        data-tafels-table-value="{{ table }}"
+        data-tafels-sum-label-value="{{ 'game.rekenen.tafels.sum_label'|trans }}"
+        data-tafels-correct-value="{{ 'game.rekenen.tafels.correct'|trans }}"
+        data-tafels-try-again-value="{{ 'game.rekenen.tafels.try_again'|trans }}"
+        data-tafels-remaining-value="{{ 'game.rekenen.tafels.remaining'|trans }}"
+    >
+        <header class="bubble-game__header">
+            <h1>{{ title }}</h1>
+            <p>{{ 'game.rekenen.tafels.intro'|trans }}</p>
+            <p class="bubble-game__progress" data-tafels-target="progress"></p>
+        </header>
+
+        <ul class="bubble-field" data-tafels-target="field"></ul>
+
+        <template data-tafels-target="bubbleTemplate">
+            <li class="bubble">
+                <button type="button" class="bubble__sum" data-action="tafels#open">
+                    <span class="bubble__question"></span>
+                    <span class="bubble__placeholder" aria-hidden="true">…</span>
+                </button>
+                <input type="text" class="bubble__answer"
+                    inputmode="none" maxlength="3" autocomplete="off"
+                    aria-label="{{ 'game.rekenen.tafels.answer'|trans }}"
+                    data-action="input->tafels#typed keydown->tafels#keydown" hidden>
+            </li>
+        </template>
+
+        <div class="keypad" data-tafels-target="keypad" hidden>
+            {% for digit in [1, 2, 3, 4, 5, 6, 7, 8, 9] %}
+                <button type="button" class="keypad__key" data-action="tafels#press" data-tafels-digit-param="{{ digit }}">{{ digit }}</button>
+            {% endfor %}
+            <button type="button" class="keypad__key keypad__key--erase" data-action="tafels#erase"
+                aria-label="{{ 'game.rekenen.tafels.keypad.erase'|trans }}">⌫</button>
+            <button type="button" class="keypad__key" data-action="tafels#press" data-tafels-digit-param="0">0</button>
+            <button type="button" class="keypad__key keypad__key--check" data-action="tafels#submit">{{ 'game.rekenen.tafels.keypad.check'|trans }}</button>
+        </div>
+
+        <p class="bubble-game__status" role="status" data-tafels-target="status"></p>
+
+        <div class="round-complete" data-tafels-target="complete" hidden>
+            <p class="round-complete__message">{{ 'game.rekenen.tafels.done'|trans({'%table%': table}) }}</p>
+            <div class="round-complete__actions">
+                <button type="button" class="action-button" data-action="tafels#restart" data-tafels-target="restart">
+                    {{ 'game.rekenen.tafels.again'|trans }}
+                </button>
+                <a class="action-button action-button--secondary" href="{{ path('app_game_rekenen') }}">
+                    {{ 'game.rekenen.tafels.other_table'|trans }}
+                </a>
+            </div>
+        </div>
+    </section>
+{% endblock %}
