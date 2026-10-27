@@ -25,4 +25,12 @@ return [
     '@hotwired/turbo' => [
         'version' => '8.0.23',
     ],
+    '@fontsource/atkinson-hyperlegible/400.css' => [
+        'version' => '5.3.0',
+        'type' => 'css',
+    ],
+    '@fontsource/atkinson-hyperlegible/700.css' => [
+        'version' => '5.3.0',
+        'type' => 'css',
+    ],
 ];

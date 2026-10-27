@@ -1,7 +1,8 @@
 /*
  * Base styles for Scholi. Plain, semantic CSS (no utility frameworks).
  * Audience: primary-school pupils — large type, large touch targets, high contrast.
- * Fonts are system fonts only: no external font CDNs (privacy, see AGENTS.md).
+ * Font: Atkinson Hyperlegible (400/700), self-hosted via AssetMapper (see assets/app.js);
+ * no external font CDNs (privacy, see AGENTS.md). System fonts are the fallback.
  */
 
 :root {
@@ -16,7 +17,8 @@
     --color-success-surface: #dcfce7;
     --color-border: #e5e7eb;
 
-    --font-body: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-body:
+        'Atkinson Hyperlegible', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-size-base: 1.25rem;
 
     --space-1: 0.5rem;

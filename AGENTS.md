@@ -16,6 +16,7 @@ Game specifications and mechanics are **not defined yet**. Don't invent game rul
 | Backend | Symfony **7.4 LTS** (webapp pack: Twig, Doctrine ORM + Migrations, Security, Forms, Mailer, Messenger) |
 | Frontend | Symfony UX: **AssetMapper** + **Stimulus** + **Turbo** (native ES modules, no bundler/build step) |
 | Styling | Plain semantic CSS in `assets/styles/` (no Tailwind or utility frameworks) |
+| Font | **Atkinson Hyperlegible** 400/700 (`@fontsource/atkinson-hyperlegible` via importmap), self-hosted |
 | Accounts | Link-based players (no passwords, no e-mail); stateless firewall + cookie, see **Players** |
 | PHP quality | PHPUnit 13 (+ DAMA doctrine-test-bundle), PHPStan (level max + Symfony + Doctrine extensions), PHP-CS-Fixer (`@Symfony`) |
 | JS quality | ESLint (flat config), Prettier, Vitest |
@@ -127,7 +128,8 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 ## Privacy (AVG/GDPR, minors)
 
-- Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS locally (`assets/vendor/`, installed with `importmap:install`).
+- Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS **and fonts** locally into `assets/vendor/` (git-ignored). `importmap:install` downloads them, and `composer install` runs it automatically.
+- Fonts: pin the font's CSS with `ddev console importmap:require @fontsource/<font>/<weight>.css` and import it in `assets/app.js`. AssetMapper also downloads the woff2/woff files that CSS references. Never commit font files and never link to fonts.googleapis.com.
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
 - What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name), the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. Nothing else: no e-mail, no IP addresses, no tracking.
 
