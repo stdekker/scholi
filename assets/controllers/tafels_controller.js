@@ -51,6 +51,7 @@ export default class extends Controller {
         'readyDialog',
         'readyTime',
         'readyButton',
+        'readyBack',
         'countdown',
         'savedMessage',
         'saveFailedMessage',
@@ -106,6 +107,7 @@ export default class extends Controller {
         this.readyDone = false;
         this.readyTimeTarget.textContent = formatTime(this.round.timeLimitMs);
         this.readyButtonTarget.hidden = false;
+        this.readyBackTarget.hidden = false;
         this.countdownTarget.textContent = '';
         if (!this.readyDialogTarget.open) {
             this.readyDialogTarget.showModal();
@@ -116,6 +118,7 @@ export default class extends Controller {
     /** "Ik ben er klaar voor!" → 3, 2, 1, Start! → close the dialog and start the clock. */
     ready() {
         this.readyButtonTarget.hidden = true;
+        this.readyBackTarget.hidden = true;
 
         for (let step = 0; step < READY_COUNTDOWN_SECONDS; step++) {
             this.schedule(step * 1000, () =>

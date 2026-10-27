@@ -37,6 +37,10 @@
                 data-tafels-target="readyButton" data-action="tafels#ready">
                 {{ 'game.rekenen.tafels.ready.button'|trans }}
             </button>
+            <a class="action-button action-button--secondary action-button--small ready-dialog__back"
+                href="{{ path('app_game_rekenen') }}" data-tafels-target="readyBack">
+                <span aria-hidden="true">←</span> {{ 'game.rekenen.tafels.ready.back'|trans }}
+            </a>
             <p class="ready-dialog__countdown" role="status" data-tafels-target="countdown"></p>
         </dialog>
 

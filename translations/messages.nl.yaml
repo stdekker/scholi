@@ -32,6 +32,7 @@ game:
                 text: Knap alle bubbels binnen de tijd.
                 button: Ik ben er klaar voor!
                 go: Start!
+                back: Terug
             timer:
                 label: Tijd
                 up: De tijd is om! Maak de bubbels rustig af.

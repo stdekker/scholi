@@ -36,6 +36,7 @@ final class RekenenControllerTest extends WebTestCase
         self::assertSelectorTextSame('[role="timer"]', '1:00');
         self::assertSelectorTextSame('dialog.ready-dialog h2', 'Ben je er klaar voor?');
         self::assertSelectorTextContains('dialog.ready-dialog button', 'Ik ben er klaar voor!');
+        self::assertSelectorTextContains('dialog.ready-dialog a.ready-dialog__back[href="/rekenen"]', 'Terug');
         self::assertSelectorTextContains('[data-tafels-target="lateMessage"]', 'Iets sneller de volgende keer!');
     }
 
