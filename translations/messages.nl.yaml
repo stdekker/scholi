@@ -1,5 +1,10 @@
 app:
     name: Scholi
+    about:
+        button: Meer over Scholi
+        title: Over Scholi
+        text: Een vriendelijke, speelse en privacyvriendelijke leeromgeving voor kinderen. De code is open source, gratis te downloaden en voor iedereen aanpasbaar.
+        close: Sluiten
 
 home:
     title: Kies een spel

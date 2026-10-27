@@ -26,3 +26,7 @@ ddev qa
 Runs PHP-CS-Fixer, PHPStan, PHPUnit, ESLint, Prettier and Vitest.
 
 See [AGENTS.md](AGENTS.md) for conventions and project structure.
+
+## License
+
+Scholi is free software, licensed under the [GNU General Public License v3.0 or later](LICENSE).

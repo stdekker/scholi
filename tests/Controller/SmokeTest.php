@@ -17,6 +17,8 @@ final class SmokeTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('html[lang="nl"]');
+        self::assertSelectorTextContains('.site-header button[popovertarget="about-scholi"]', 'Meer over Scholi');
+        self::assertSelectorTextContains('#about-scholi[popover]', 'privacyvriendelijke leeromgeving voor kinderen');
     }
 
     /**

@@ -1,7 +1,7 @@
 {
     "name": "scholi/scholi",
     "type": "project",
-    "license": "proprietary",
+    "license": "GPL-3.0-or-later",
     "description": "Leuke, leerzame spellen voor het basisonderwijs (rekenen en meer)",
     "minimum-stability": "stable",
     "prefer-stable": true,

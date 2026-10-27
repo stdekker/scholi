@@ -60,7 +60,7 @@ src/Game/                                    # server-side game rules (Tafels: t
 src/Security/                                # player link token, cookie, authenticator
 src/Player/                                  # FunNameGenerator
 src/Migrations/                              # Doctrine migrations
-templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body)
+templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body), header + "Meer over Scholi" popover
 templates/home/                              # homepage
 templates/game/<subject>/                    # subject + game pages, e.g. game/rekenen/tafel.html.twig
 templates/player/                            # registration, player page, progress badge
