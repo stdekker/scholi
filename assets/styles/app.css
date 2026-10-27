@@ -458,6 +458,48 @@ body {
     display: none;
 }
 
+.bubble__frozen-icon {
+    display: none;
+}
+
+/* Three wrong answers: smaller, grey, no answer, can't be clicked. */
+.bubble--frozen {
+    scale: 0.75;
+    border-color: #9ca3af;
+    background: radial-gradient(circle at 50% 50%, #f3f4f6, #d1d5db);
+    box-shadow: none;
+    transition: scale 0.3s ease;
+}
+
+.bubble--frozen .bubble__sum {
+    color: #374151;
+    cursor: default;
+}
+
+.bubble--frozen .bubble__placeholder {
+    display: none;
+}
+
+.bubble--frozen .bubble__frozen-icon {
+    display: block;
+    font-size: 1.25rem;
+}
+
+.bubble__solution {
+    display: none;
+}
+
+/* Round over: a frozen bubble shows the right answer in place of the ❄️. */
+.bubble--revealed .bubble__frozen-icon {
+    display: none;
+}
+
+.bubble--revealed .bubble__solution {
+    display: block;
+    color: var(--color-primary);
+    font-size: 1.75rem;
+}
+
 .bubble--appearing {
     animation: bubble-appear 0.3s ease-out var(--appear-delay, 0s) both;
 }
@@ -501,7 +543,13 @@ body {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-    .bubble:not(.bubble--appearing, .bubble--active, .bubble--wrong, .bubble--popping) {
+    .bubble:not(
+        .bubble--appearing,
+        .bubble--active,
+        .bubble--wrong,
+        .bubble--popping,
+        .bubble--frozen
+    ) {
         animation: bubble-bob 3s ease-in-out var(--bubble-delay, 0s) infinite;
     }
 

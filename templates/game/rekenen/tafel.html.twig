@@ -19,6 +19,10 @@
         data-tafels-sum-label-value="{{ 'game.rekenen.tafels.sum_label'|trans }}"
         data-tafels-correct-value="{{ 'game.rekenen.tafels.correct'|trans }}"
         data-tafels-try-again-value="{{ 'game.rekenen.tafels.try_again'|trans }}"
+        data-tafels-frozen-value="{{ 'game.rekenen.tafels.frozen'|trans }}"
+        data-tafels-frozen-label-value="{{ 'game.rekenen.tafels.frozen_label'|trans }}"
+        data-tafels-revealed-label-value="{{ 'game.rekenen.tafels.revealed_label'|trans }}"
+        data-tafels-done-frozen-value="{{ 'game.rekenen.tafels.done_frozen'|trans }}"
         data-tafels-remaining-value="{{ 'game.rekenen.tafels.remaining'|trans }}"
         data-tafels-time-up-value="{{ 'game.rekenen.tafels.timer.up'|trans }}"
         data-tafels-go-value="{{ 'game.rekenen.tafels.ready.go'|trans }}"
@@ -65,6 +69,10 @@
                 <button type="button" class="bubble__sum" data-action="tafels#open">
                     <span class="bubble__question"></span>
                     <span class="bubble__placeholder" aria-hidden="true">…</span>
+                    {# Shown on a frozen bubble, so freezing isn't shown by colour alone. #}
+                    <span class="bubble__frozen-icon" aria-hidden="true">❄️</span>
+                    {# Filled in by the controller when the round is over. #}
+                    <span class="bubble__solution"></span>
                 </button>
                 <input type="text" class="bubble__answer"
                     inputmode="none" maxlength="3" autocomplete="off"
@@ -91,6 +99,7 @@
         <div class="round-complete" data-tafels-target="complete" hidden>
             <p class="round-complete__message" data-tafels-target="passedMessage">{{ (is_all ? 'game.rekenen.tafels.all.done' : 'game.rekenen.tafels.done')|trans({'%table%': table}) }}</p>
             <p class="round-complete__message" data-tafels-target="lateMessage" hidden>{{ 'game.rekenen.tafels.done_late'|trans({'%table%': table}) }}</p>
+            <p class="round-complete__message" data-tafels-target="frozenMessage" hidden></p>
             {% if app.user %}
                 <p class="round-complete__note" data-tafels-target="savedMessage" hidden>{{ 'game.rekenen.tafels.saved'|trans }}</p>
                 <p class="round-complete__note" data-tafels-target="saveFailedMessage" hidden>{{ 'game.rekenen.tafels.save_failed'|trans }}</p>

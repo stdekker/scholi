@@ -7,6 +7,9 @@ import {
     createRound,
     findTask,
     format,
+    frozenTasks,
+    MAX_ATTEMPTS,
+    registerWrongAnswer,
     formatTime,
     isPassed,
     isRoundComplete,
@@ -216,6 +219,59 @@ describe('timer', () => {
         [-500, '0:00'],
     ])('formats %i ms as %s', (ms, expected) => {
         expect(formatTime(ms)).toBe(expected);
+    });
+});
+
+describe('freezing after wrong answers', () => {
+    const wrong = (round, id, times, now = 1_000) =>
+        Array.from({ length: times }).reduce((r) => registerWrongAnswer(r, id, now), round);
+
+    it('starts with no wrong attempts', () => {
+        expect(createRound(4).tasks.every((t) => t.wrongAttempts === 0 && !t.frozen)).toBe(true);
+    });
+
+    it('freezes a task on the third wrong answer', () => {
+        const round = startTimer(createRound(4), 0);
+
+        expect(MAX_ATTEMPTS).toBe(3);
+        expect(findTask(wrong(round, 1, 2), 1)).toMatchObject({ wrongAttempts: 2, frozen: false });
+        expect(findTask(wrong(round, 1, 3), 1)).toMatchObject({ wrongAttempts: 3, frozen: true });
+        expect(frozenTasks(wrong(round, 1, 3))).toHaveLength(1);
+        expect(remainingTasks(wrong(round, 1, 3))).toHaveLength(9);
+    });
+
+    it('ignores further answers on frozen or solved tasks', () => {
+        const round = startTimer(createRound(4), 0);
+        const frozen = wrong(round, 1, 5);
+
+        expect(findTask(frozen, 1)?.wrongAttempts).toBe(3);
+        expect(findTask(solveTask(frozen, 1, 2_000), 1)?.solved).toBe(false);
+        expect(findTask(wrong(solveTask(round, 2, 1_000), 2, 3), 2)?.frozen).toBe(false);
+    });
+
+    it('completes the round when every task is solved or frozen, but does not pass', () => {
+        let round = startTimer(createRound(4), 0);
+        const [first, ...rest] = round.tasks;
+        round = wrong(round, first.id, 3, 5_000);
+        for (const task of rest) {
+            round = solveTask(round, task.id, 10_000);
+        }
+
+        expect(isRoundComplete(round)).toBe(true);
+        expect(round.finishedAt).toBe(10_000);
+        expect(isPassed(round)).toBe(false);
+    });
+
+    it('ends as soon as the last open task freezes, even within the time', () => {
+        let round = startTimer(createRound(4), 0);
+        for (const task of round.tasks) {
+            round = wrong(round, task.id, 3, 20_000);
+        }
+
+        expect(isRoundComplete(round)).toBe(true);
+        expect(round.finishedAt).toBe(20_000);
+        expect(frozenTasks(round)).toHaveLength(10);
+        expect(isPassed(round)).toBe(false);
     });
 });
 

@@ -3,10 +3,12 @@
  *
  * A round practises one table (2–10): ten sums "multiplier × table" for multipliers 1–10,
  * in random order. "Alle tafels" (table ALL_TABLES) instead picks ALL_TABLES_COUNT different
- * sums from all tables. A task is solved once the pupil enters the right answer.
+ * sums from all tables. A task is solved once the pupil enters the right answer; after
+ * MAX_ATTEMPTS wrong answers it is frozen instead. The round is complete when every task is
+ * solved or frozen, whether or not the time has run out.
  *
  * Timer: the round's clock starts after a READY_COUNTDOWN_SECONDS countdown. The pupil passes
- * when all sums are solved within TIME_LIMIT_MS; after that they may still finish the round.
+ * when all sums are solved (none frozen) within TIME_LIMIT_MS; after that they may still finish.
  *
  * Pure ES module: no DOM access, no bare (importmap) imports, randomness injected.
  * The DOM wiring lives in assets/controllers/tafels_controller.js.
@@ -18,6 +20,8 @@ export const MIN_TABLE = 2;
 export const MAX_TABLE = 10;
 /** Table number for "alle tafels" (mirrors App\Game\Tafels::ALL). */
 export const ALL_TABLES = 0;
+/** Wrong answers after which a bubble freezes. */
+export const MAX_ATTEMPTS = 3;
 /** Bubbles in an "alle tafels" round (the Dutch texts say "twintig"). */
 export const ALL_TABLES_COUNT = 20;
 export const ANSWER_MAX_LENGTH = 3;
@@ -32,6 +36,8 @@ export const READY_COUNTDOWN_SECONDS = 3;
  * @property {number} table
  * @property {number} answer
  * @property {boolean} solved
+ * @property {number} wrongAttempts
+ * @property {boolean} frozen true after MAX_ATTEMPTS wrong answers
  */
 
 /**
@@ -74,6 +80,8 @@ export function createRound(table, random = Math.random, timeLimitMs = TIME_LIMI
             table: t,
             answer: multiplier * t,
             solved: false,
+            wrongAttempts: 0,
+            frozen: false,
         })),
         timeLimitMs,
         startedAt: null,
@@ -111,10 +119,38 @@ export function checkAnswer(task, input) {
  * @returns {Round}
  */
 export function solveTask(round, taskId, now) {
+    return updateTask(round, taskId, now, (task) => ({ ...task, solved: true }));
+}
+
+/**
+ * Registers a wrong answer; the MAX_ATTEMPTS-th wrong answer freezes the task. Freezing the
+ * last open task completes the round (records `finishedAt`).
+ *
+ * @param {Round} round
+ * @param {number} taskId
+ * @param {number} now current timestamp in ms
+ * @returns {Round}
+ */
+export function registerWrongAnswer(round, taskId, now) {
+    return updateTask(round, taskId, now, (task) => {
+        const wrongAttempts = task.wrongAttempts + 1;
+
+        return { ...task, wrongAttempts, frozen: wrongAttempts >= MAX_ATTEMPTS };
+    });
+}
+
+/**
+ * @param {Round} round
+ * @param {number} taskId
+ * @param {number} now
+ * @param {(task: Task) => Task} change
+ * @returns {Round}
+ */
+function updateTask(round, taskId, now, change) {
     const tasks = round.tasks.map((task) =>
-        task.id === taskId ? { ...task, solved: true } : task,
+        task.id === taskId && !task.solved && !task.frozen ? change(task) : task,
     );
-    const complete = tasks.every((task) => task.solved);
+    const complete = tasks.every((task) => task.solved || task.frozen);
 
     return { ...round, tasks, finishedAt: complete ? (round.finishedAt ?? now) : null };
 }
@@ -123,8 +159,16 @@ export function solveTask(round, taskId, now) {
  * @param {Round} round
  * @returns {Task[]}
  */
+export function frozenTasks(round) {
+    return round.tasks.filter((task) => task.frozen);
+}
+
+/**
+ * @param {Round} round
+ * @returns {Task[]}
+ */
 export function remainingTasks(round) {
-    return round.tasks.filter((task) => !task.solved);
+    return round.tasks.filter((task) => !task.solved && !task.frozen);
 }
 
 /**
@@ -191,6 +235,7 @@ export function isPassed(round) {
     return (
         round.startedAt !== null &&
         round.finishedAt !== null &&
+        frozenTasks(round).length === 0 &&
         round.finishedAt - round.startedAt <= round.timeLimitMs
     );
 }

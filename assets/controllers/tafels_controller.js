@@ -6,11 +6,13 @@ import {
     findTask,
     format,
     formatTime,
+    frozenTasks,
     isPassed,
     isRoundComplete,
     isTimeUp,
     READY_COUNTDOWN_SECONDS,
     remainingTasks,
+    registerWrongAnswer,
     removeLastDigit,
     roundDuration,
     solveTask,
@@ -48,6 +50,7 @@ export default class extends Controller {
         'time',
         'passedMessage',
         'lateMessage',
+        'frozenMessage',
         'readyDialog',
         'readyTime',
         'readyButton',
@@ -65,6 +68,14 @@ export default class extends Controller {
         sumLabel: String,
         correct: String,
         tryAgain: String,
+        // Shown when a bubble freezes after too many wrong answers.
+        frozen: String,
+        // Screen-reader label of a frozen bubble: "%multiplier% keer %table%, bevroren".
+        frozenLabel: String,
+        // Screen-reader label of a frozen bubble once the answer is shown: "%multiplier% keer %table% is %answer%".
+        revealedLabel: String,
+        // Completion text when bubbles froze: "%solved% van de %total% …".
+        doneFrozen: String,
         remaining: String,
         timeUp: String,
         go: String,
@@ -207,7 +218,11 @@ export default class extends Controller {
     }
 
     activate(bubble) {
-        if (bubble === this.activeBubble || bubble.classList.contains('bubble--popping')) {
+        if (
+            bubble === this.activeBubble ||
+            bubble.classList.contains('bubble--popping') ||
+            bubble.classList.contains('bubble--frozen')
+        ) {
             this.answerInput()?.focus();
             return;
         }
@@ -290,7 +305,10 @@ export default class extends Controller {
     }
 
     bubbleToActivate() {
-        const available = (bubble) => bubble && !bubble.classList.contains('bubble--popping');
+        const available = (bubble) =>
+            bubble &&
+            !bubble.classList.contains('bubble--popping') &&
+            !bubble.classList.contains('bubble--frozen');
         const focused = document.activeElement?.closest('.bubble');
 
         if (available(focused) && this.fieldTarget.contains(focused)) {
@@ -331,6 +349,12 @@ export default class extends Controller {
         }
 
         if (!checkAnswer(task, input.value)) {
+            this.round = registerWrongAnswer(this.round, task.id, Date.now());
+            if (findTask(this.round, task.id)?.frozen) {
+                this.freeze(bubble, task);
+                return;
+            }
+
             this.statusTarget.textContent = this.tryAgainValue;
             bubble.classList.remove('bubble--wrong');
             // Force a reflow so the wiggle animation restarts on repeated wrong answers.
@@ -357,6 +381,21 @@ export default class extends Controller {
         const timer = setTimeout(() => this.removeBubble(bubble), POP_FALLBACK_MS);
         this.timers.add(timer);
         bubble.dataset.popTimer = String(timer);
+    }
+
+    /** Third wrong answer: the bubble shrinks, turns grey and can't be answered any more. */
+    freeze(bubble, task) {
+        this.close();
+        this.statusTarget.textContent = this.frozenValue;
+        bubble.classList.add('bubble--frozen');
+        const button = bubble.querySelector('.bubble__sum');
+        button.disabled = true;
+        button.setAttribute(
+            'aria-label',
+            format(this.frozenLabelValue, { multiplier: task.multiplier, table: task.table }),
+        );
+        this.updateProgress();
+        this.focusNext(bubble);
     }
 
     animationEnded(event, bubble) {
@@ -387,7 +426,10 @@ export default class extends Controller {
         }
 
         const next = [...this.fieldTarget.children].find(
-            (bubble) => bubble !== poppedBubble && !bubble.classList.contains('bubble--popping'),
+            (bubble) =>
+                bubble !== poppedBubble &&
+                !bubble.classList.contains('bubble--popping') &&
+                !bubble.classList.contains('bubble--frozen'),
         );
         next?.querySelector('.bubble__sum').focus();
     }
@@ -397,16 +439,45 @@ export default class extends Controller {
         this.renderClock();
 
         const passed = isPassed(this.round);
+        const frozen = frozenTasks(this.round).length;
         this.passedMessageTarget.hidden = !passed;
-        this.lateMessageTarget.hidden = passed;
+        this.lateMessageTarget.hidden = passed || frozen > 0;
+        this.frozenMessageTarget.hidden = frozen === 0;
+        this.frozenMessageTarget.textContent = format(this.doneFrozenValue, {
+            solved: this.round.tasks.length - frozen,
+            total: this.round.tasks.length,
+        });
+        this.revealFrozenAnswers();
+        // "Ga verder met een andere!" no longer applies: the completion panel says how it went.
+        if (frozen > 0) {
+            this.statusTarget.textContent = '';
+        }
         this.completeTarget.hidden = false;
         this.restartTarget.focus();
         this.saveResult();
     }
 
+    /** After the round, frozen bubbles show the right answer (only now, so it can't be peeked). */
+    revealFrozenAnswers() {
+        for (const task of frozenTasks(this.round)) {
+            const bubble = this.fieldTarget.querySelector(`.bubble[data-task-id="${task.id}"]`);
+            if (!bubble) {
+                continue;
+            }
+
+            const params = { multiplier: task.multiplier, table: task.table, answer: task.answer };
+            bubble.classList.add('bubble--revealed');
+            bubble.querySelector('.bubble__solution').textContent = String(task.answer);
+            bubble
+                .querySelector('.bubble__sum')
+                .setAttribute('aria-label', format(this.revealedLabelValue, params));
+        }
+    }
+
     async saveResult() {
         const durationMs = roundDuration(this.round);
-        if (!this.saveUrlValue || durationMs === null) {
+        // Only complete rounds count as progress: rounds with frozen bubbles are not saved.
+        if (!this.saveUrlValue || durationMs === null || frozenTasks(this.round).length > 0) {
             return;
         }
 

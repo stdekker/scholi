@@ -24,6 +24,10 @@ game:
             answer: Jouw antwoord
             correct: 'Goed zo! %multiplier% × %table% = %answer%'
             try_again: Bijna! Probeer het nog eens.
+            frozen: Oei, deze bubbel is bevroren. Ga verder met een andere!
+            frozen_label: '%multiplier% keer %table%, bevroren'
+            revealed_label: '%multiplier% keer %table% is %answer%'
+            done_frozen: 'Je hebt %solved% van de %total% bubbels geknapt. Oefen nog even en probeer het opnieuw!'
             remaining: 'Bubbels over: %count%'
             done: Super gedaan! Je hebt alle bubbels van de tafel van %table% binnen een minuut geknapt!
             done_late: Alle bubbels zijn geknapt. Iets sneller de volgende keer!

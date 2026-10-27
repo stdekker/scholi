@@ -38,6 +38,9 @@ final class RekenenControllerTest extends WebTestCase
         self::assertSelectorTextContains('dialog.ready-dialog button', 'Ik ben er klaar voor!');
         self::assertSelectorTextContains('dialog.ready-dialog a.ready-dialog__back[href="/rekenen"]', 'Terug');
         self::assertSelectorTextContains('[data-tafels-target="lateMessage"]', 'Iets sneller de volgende keer!');
+        self::assertSelectorExists('[data-tafels-target="frozenMessage"][hidden]');
+        self::assertSelectorExists('[data-tafels-frozen-value="Oei, deze bubbel is bevroren. Ga verder met een andere!"]');
+        self::assertSelectorExists('[data-tafels-done-frozen-value*="%solved% van de %total%"]');
     }
 
     public function testAlleTafelsPageConfiguresTheGame(): void
