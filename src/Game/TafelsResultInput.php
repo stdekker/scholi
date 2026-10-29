@@ -12,8 +12,11 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 final readonly class TafelsResultInput
 {
+    /** One hour: anything longer is not a real round. */
+    public const int MAX_DURATION_MS = 3_600_000;
+
     public function __construct(
-        #[Assert\Range(min: 1, max: 3_600_000)]
+        #[Assert\Range(min: 1, max: self::MAX_DURATION_MS)]
         public int $durationMs,
     ) {
     }

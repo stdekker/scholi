@@ -6,6 +6,8 @@ namespace App\Tests\Support;
 
 use App\Entity\Player;
 use App\Entity\TafelsResult;
+use App\Player\GuestProgress;
+use App\Security\GuestProgressCookie;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,6 +41,21 @@ trait PlayerTestTrait
         $client->getCookieJar()->set(new Cookie(PlayerCookie::NAME, $token, null, '/', 'localhost'));
     }
 
+    private function setGuestProgress(KernelBrowser $client, GuestProgress $progress): void
+    {
+        $this->setGuestCookie($client, $this->guestCookie()->encode($progress));
+    }
+
+    private function setGuestCookie(KernelBrowser $client, string $value): void
+    {
+        $client->getCookieJar()->set(new Cookie(GuestProgressCookie::NAME, $value, null, '/', 'localhost'));
+    }
+
+    private function guestCookie(): GuestProgressCookie
+    {
+        return static::getContainer()->get(GuestProgressCookie::class);
+    }
+
     private function addResult(Player $player, int $table, int $durationMs): void
     {
         $entityManager = $this->entityManager();
@@ -53,8 +70,18 @@ trait PlayerTestTrait
 
     private function responsePlayerCookie(KernelBrowser $client): ?ResponseCookie
     {
+        return $this->responseCookie($client, PlayerCookie::NAME);
+    }
+
+    private function responseGuestCookie(KernelBrowser $client): ?ResponseCookie
+    {
+        return $this->responseCookie($client, GuestProgressCookie::NAME);
+    }
+
+    private function responseCookie(KernelBrowser $client, string $name): ?ResponseCookie
+    {
         foreach ($client->getResponse()->headers->getCookies() as $cookie) {
-            if (PlayerCookie::NAME === $cookie->getName()) {
+            if ($name === $cookie->getName()) {
                 return $cookie;
             }
         }

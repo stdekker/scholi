@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Player;
+use App\Entity\TafelsResult;
 use App\Form\PlayerType;
 use App\Game\Tafels;
 use App\Player\FunNameGenerator;
 use App\Repository\PlayerRepository;
 use App\Repository\TafelsResultRepository;
+use App\Security\GuestProgressCookie;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +25,9 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 /**
  * Link-based player accounts: register with just a (fun) name, come back via the player
  * link /speler/{token}, which is remembered in a cookie. Logout is handled by the firewall.
+ *
+ * Results played as a guest move to the new player on registration only; opening an existing
+ * link leaves them alone, so on a shared computer they never end up with another child.
  */
 final class PlayerController extends AbstractController
 {
@@ -58,12 +63,14 @@ final class PlayerController extends AbstractController
         Request $request,
         FunNameGenerator $names,
         EntityManagerInterface $entityManager,
+        GuestProgressCookie $guestCookie,
         #[CurrentUser] ?Player $player = null,
     ): Response {
         if (null !== $player) {
             return $this->redirectToRoute('app_player');
         }
 
+        $guestProgress = $guestCookie->read($request);
         $suggestions = $names->suggestions(self::NAME_SUGGESTIONS);
         $form = $this->createForm(PlayerType::class, $suggestions[0]);
         $form->handleRequest($request);
@@ -74,11 +81,18 @@ final class PlayerController extends AbstractController
             \assert(\is_string($name) && \is_string($emoji));
 
             $token = PlayerToken::generate();
-            $entityManager->persist(new Player($name, PlayerToken::hash($token), new \DateTimeImmutable(), $emoji));
+            $player = new Player($name, PlayerToken::hash($token), new \DateTimeImmutable(), $emoji);
+            $entityManager->persist($player);
+            foreach ($guestProgress->results ?? [] as $table => $result) {
+                $entityManager->persist(new TafelsResult($player, $table, $result['bestMs'], $result['completedAt']));
+            }
             $entityManager->flush();
 
             $response = $this->redirectToRoute('app_player', ['nieuw' => 1]);
             $response->headers->setCookie(PlayerCookie::create($request, $token));
+            if ($request->cookies->has(GuestProgressCookie::NAME)) {
+                $response->headers->setCookie($guestCookie->clear($request));
+            }
 
             return $response;
         }
@@ -86,6 +100,7 @@ final class PlayerController extends AbstractController
         return $this->render('player/new.html.twig', [
             'form' => $form,
             'name_suggestions' => $suggestions,
+            'carries_over_progress' => !($guestProgress?->isEmpty() ?? true),
         ]);
     }
 

@@ -6,6 +6,9 @@
     <section class="player-card">
         <h1>{{ 'player.new.title'|trans }}</h1>
         <p>{{ 'player.new.intro'|trans }}</p>
+        {% if carries_over_progress %}
+            <p class="notice notice--success">{{ 'player.new.carry_over'|trans }}</p>
+        {% endif %}
 
         {{ form_start(form, {attr: {class: 'player-form'}}) }}
             <div class="player-form__identity" data-controller="name-suggestions emoji-picker"

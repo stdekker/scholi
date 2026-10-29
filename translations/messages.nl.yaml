@@ -39,8 +39,8 @@ game:
             other_table: Andere tafel
             saved: Je resultaat is bewaard.
             save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
-            guest: Wil je je sterren bewaren?
-            guest_link: Maak een speler.
+            guest_saved: Je resultaat is bewaard op deze computer.
+            guest_link: Maak een speler om het altijd te bewaren.
             ready:
                 title: Ben je er klaar voor?
                 text: Knap alle bubbels binnen de tijd.
@@ -67,6 +67,7 @@ player:
         shuffle: Andere naam
         shuffled: 'Nieuwe naam: %name%'
         submit: Maak mijn speler
+        carry_over: Wat je op deze computer al hebt geoefend, gaat mee naar je nieuwe speler. ⭐
     show:
         title: 'Hoi %name%!'
         created: Je speler is gemaakt! Bewaar je spelerslink hieronder goed.

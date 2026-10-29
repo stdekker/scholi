@@ -8,10 +8,13 @@ use App\Entity\Player;
 use App\Entity\TafelsResult;
 use App\Game\Tafels;
 use App\Game\TafelsResultInput;
+use App\Player\GuestProgress;
 use App\Repository\TafelsResultRepository;
+use App\Security\GuestProgressCookie;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -19,14 +22,27 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
 final class RekenenController extends AbstractController
 {
+    public function __construct(
+        private readonly GuestProgressCookie $guestCookie,
+    ) {
+    }
+
     #[Route('/rekenen', name: 'app_game_rekenen', methods: ['GET'])]
-    public function index(TafelsResultRepository $results, #[CurrentUser] ?Player $player = null): Response
+    public function index(Request $request, TafelsResultRepository $results, #[CurrentUser] ?Player $player = null): Response
     {
-        return $this->render('game/rekenen/index.html.twig', [
+        $guestProgress = null === $player ? $this->guestCookie->read($request) : null;
+
+        $response = $this->render('game/rekenen/index.html.twig', [
             'tables' => Tafels::tables(),
             'all_tables' => Tafels::ALL,
-            'progress' => null !== $player ? $results->progressFor($player) : [],
+            'progress' => null !== $player ? $results->progressFor($player) : ($guestProgress?->progress() ?? []),
         ]);
+
+        if (null === $player && null === $guestProgress) {
+            $response->headers->setCookie($this->guestCookie->clear($request));
+        }
+
+        return $response;
     }
 
     #[Route('/rekenen/tafel/{table}', name: 'app_game_rekenen_tafel', requirements: ['table' => Tafels::TABLE_PATTERN], methods: ['GET'])]
@@ -42,26 +58,29 @@ final class RekenenController extends AbstractController
     }
 
     /**
-     * Stores a completed round for the logged-in player. JSON only: together with the
-     * SameSite=Lax player cookie this protects the endpoint against cross-site posts.
+     * Stores a completed round: in the database for a player, in the signed guest cookie for a
+     * guest. JSON only: together with the SameSite=Lax cookies this protects the endpoint
+     * against cross-site posts.
      */
     #[Route('/rekenen/tafel/{table}/resultaat', name: 'app_game_rekenen_tafel_result', requirements: ['table' => Tafels::TABLE_PATTERN], methods: ['POST'], format: 'json')]
     public function saveResult(
+        Request $request,
         int $table,
         #[MapRequestPayload(acceptFormat: 'json')] TafelsResultInput $input,
         EntityManagerInterface $entityManager,
         #[CurrentUser] ?Player $player = null,
     ): JsonResponse {
-        return $this->storeResult($table, $input, $entityManager, $player);
+        return $this->storeResult($request, $table, $input, $entityManager, $player);
     }
 
     #[Route('/rekenen/alle-tafels/resultaat', name: 'app_game_rekenen_alle_result', methods: ['POST'], format: 'json')]
     public function saveAlleTafelsResult(
+        Request $request,
         #[MapRequestPayload(acceptFormat: 'json')] TafelsResultInput $input,
         EntityManagerInterface $entityManager,
         #[CurrentUser] ?Player $player = null,
     ): JsonResponse {
-        return $this->storeResult(Tafels::ALL, $input, $entityManager, $player);
+        return $this->storeResult($request, Tafels::ALL, $input, $entityManager, $player);
     }
 
     /**
@@ -80,10 +99,17 @@ final class RekenenController extends AbstractController
         ]);
     }
 
-    private function storeResult(int $table, TafelsResultInput $input, EntityManagerInterface $entityManager, ?Player $player): JsonResponse
+    private function storeResult(Request $request, int $table, TafelsResultInput $input, EntityManagerInterface $entityManager, ?Player $player): JsonResponse
     {
         if (null === $player) {
-            return $this->json(['error' => 'no_player'], Response::HTTP_UNAUTHORIZED);
+            // A tampered or outdated cookie is simply replaced.
+            $progress = ($this->guestCookie->read($request) ?? new GuestProgress())
+                ->withResult($table, $input->durationMs, new \DateTimeImmutable());
+
+            $response = $this->json(['passed' => Tafels::isPassed($table, $input->durationMs)]);
+            $response->headers->setCookie($this->guestCookie->create($request, $progress));
+
+            return $response;
         }
 
         $result = new TafelsResult($player, $table, $input->durationMs, new \DateTimeImmutable());

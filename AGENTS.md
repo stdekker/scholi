@@ -68,8 +68,8 @@ src/Controller/Game/<Subject>Controller.php  # one controller per subject, e.g. 
 src/Controller/PlayerController.php          # /speler, /speler/nieuw, /speler/{token}
 src/Entity/, src/Repository/                 # Doctrine: Player, TafelsResult
 src/Game/                                    # server-side game rules (Tafels: tables, TIME_LIMIT_MS), progress, input DTOs
-src/Security/                                # player link token, cookie, authenticator
-src/Player/                                  # FunNameGenerator
+src/Security/                                # player link token, cookie, authenticator, signed guest progress cookie
+src/Player/                                  # FunNameGenerator, GuestProgress
 src/Migrations/                              # Doctrine migrations
 templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body), header, footer with the "Meer over Scholi" popover
 templates/home/                              # homepage
@@ -103,8 +103,14 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - When all ten bubbles are popped, a completion panel appears. Within the minute it says the pupil **passed** ("Super gedaan! … binnen een minuut geknapt!"). Otherwise it says "Alle bubbels zijn geknapt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and "Andere tafel".
 - Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
 - The time limit comes from the server (`App\Game\Tafels::timeLimitMs()` → `data-tafels-time-limit-value`), so the client's verdict and the stored result always agree.
-- **Saving:** for a logged-in player, the finished round is POSTed as JSON (`{durationMs}`) to `/rekenen/tafel/{table}/resultaat` (or `/rekenen/alle-tafels/resultaat`). The server decides `passed`. Guests see a "Wil je je sterren bewaren?" link instead.
-- **Progress:** the picker and the player page show each table's best result: ⭐ + best time when done within the minute, ✓ + best time when completed more slowly.
+- **Saving:** the finished round is POSTed as JSON (`{durationMs}`) to `/rekenen/tafel/{table}/resultaat` (or `/rekenen/alle-tafels/resultaat`), and the server decides `passed`.
+  - For a player, the result goes to the database (201).
+  - For a guest, it goes into the **guest progress cookie** (200), and the panel says "Je resultaat is bewaard op deze computer" with a link to make a player.
+- **Progress:** the picker and the player page show each table's best result: ⭐ + best time when done within the minute, ✓ + best time when completed more slowly. Guests see the badges from their cookie on the picker.
+- **Guest progress cookie** (`App\Security\GuestProgressCookie`, `App\Player\GuestProgress`):
+  - `scholi_guest`: HttpOnly, SameSite=Lax, 400 days. It holds only the best time and date per table, never `passed`.
+  - Signed with an HMAC (a key derived from `APP_SECRET`), so it only holds results the server accepted. A tampered or malformed cookie is ignored, and cleared on the picker.
+  - Nothing about guests is stored on the server.
 - The game page sets `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
 
 ## Players (accounts)
@@ -117,6 +123,7 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - The browser remembers the token in the `scholi_player` cookie (HttpOnly, SameSite=Lax, 400 days, refreshed on every visit). `PlayerCookieAuthenticator` logs the player in on each request; the `main` firewall is stateless and the app uses no session.
 - An unknown or invalid cookie never blocks anyone: the visitor continues as a guest and `PlayerCookieSubscriber` clears the cookie. Opening a valid link sets the cookie (switching player if needed); an unknown link gives a friendly 404.
 - "Uitloggen" (POST with CSRF) deletes the cookie, for shared school computers.
+- **Guest progress moves to the account on registration only**: `/speler/nieuw` turns each guest result into a `TafelsResult` (original date, `passed` recomputed) and clears the guest cookie. Opening an existing player link or logging out leaves the guest cookie alone, so on a shared computer a guest's stars never end up in another child's account.
 - Never render the player link as an `<a>` (Turbo prefetches links). Show it in a readonly input with a copy button.
 - JSON endpoints that change data must accept JSON only (`#[MapRequestPayload(acceptFormat: 'json')]`). Together with the SameSite=Lax cookie this is the CSRF protection. HTML forms use Symfony's (stateless) CSRF tokens.
 
@@ -147,7 +154,7 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS **and fonts** locally into `assets/vendor/` (git-ignored). `importmap:install` downloads them, and `composer install` runs it automatically.
 - Fonts: pin the font's CSS with `ddev console importmap:require @fontsource/<font>/<weight>.css` and import it in `assets/app.js`. AssetMapper also downloads the woff2/woff files that CSS references. Never commit font files and never link to fonts.googleapis.com.
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
-- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. Nothing else: no e-mail, no IP addresses, no tracking.
+- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. For guests the server stores nothing: their best time and date per table live only in the signed `scholi_guest` cookie in their browser. Nothing else: no e-mail, no IP addresses, no tracking.
 
 ## Code style
 

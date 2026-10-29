@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\Player;
+use App\Entity\TafelsResult;
 use App\Game\Tafels;
 use App\Player\FunNameGenerator;
+use App\Player\GuestProgress;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
 use App\Tests\Support\PlayerTestTrait;
@@ -57,6 +59,66 @@ final class PlayerControllerTest extends WebTestCase
         self::assertSelectorTextSame('.site-header__player', 'Rekenkanon 🦉');
         self::assertSelectorTextContains('.notice--success', 'Je speler is gemaakt!');
         self::assertSelectorExists(\sprintf('#player-link[value="http://localhost/speler/%s"]', $token));
+    }
+
+    public function testRegisteringTakesGuestProgressAlong(): void
+    {
+        $client = static::createClient();
+        $playedAt = new \DateTimeImmutable('2026-10-20 14:30:00');
+        $this->setGuestProgress($client, (new GuestProgress())
+            ->withResult(6, 48_200, $playedAt)
+            ->withResult(7, 75_000, $playedAt)
+            ->withResult(Tafels::ALL, 110_000, $playedAt));
+
+        $client->request('GET', '/speler/nieuw');
+        self::assertSelectorTextContains('.notice--success', 'gaat mee naar je nieuwe speler');
+
+        $client->submitForm('Maak mijn speler', ['player[name]' => 'Snelle Vos', 'player[emoji]' => '🦊']);
+
+        self::assertResponseRedirects('/speler?nieuw=1');
+        self::assertNotNull($this->responsePlayerCookie($client));
+        self::assertTrue((bool) $this->responseGuestCookie($client)?->isCleared(), 'The guest cookie is gone after the transfer');
+
+        $player = $this->entityManager()->getRepository(Player::class)->findOneBy(['name' => 'Snelle Vos']);
+        self::assertNotNull($player);
+        $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player], ['tableNumber' => 'ASC']);
+        self::assertSame(
+            [[Tafels::ALL, 110_000, true], [6, 48_200, true], [7, 75_000, false]],
+            array_map(static fn (TafelsResult $result): array => [$result->getTableNumber(), $result->getDurationMs(), $result->isPassed()], $results),
+        );
+        self::assertEquals($playedAt, $results[1]->getCompletedAt());
+
+        $client->followRedirect();
+        self::assertSelectorCount(3, '.progress-badge');
+    }
+
+    public function testTamperedGuestProgressIsNotTransferred(): void
+    {
+        $client = static::createClient();
+        $this->setGuestCookie($client, 'eyJ2IjoxLCJyIjp7IjYiOlsxLDBdfX0.bm90LXNpZ25lZA');
+
+        $client->request('GET', '/speler/nieuw');
+        self::assertSelectorNotExists('.notice--success');
+        $client->submitForm('Maak mijn speler', ['player[name]' => 'Valse Vos']);
+
+        self::assertResponseRedirects('/speler?nieuw=1');
+        self::assertTrue((bool) $this->responseGuestCookie($client)?->isCleared());
+        $player = $this->entityManager()->getRepository(Player::class)->findOneBy(['name' => 'Valse Vos']);
+        self::assertNotNull($player);
+        self::assertSame(0, $this->entityManager()->getRepository(TafelsResult::class)->count(['player' => $player]));
+    }
+
+    public function testPlayerLinkLeavesGuestProgressAlone(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer('Dappere Draak');
+        $this->setGuestProgress($client, (new GuestProgress())->withResult(6, 48_200, new \DateTimeImmutable()));
+
+        $client->request('GET', '/speler/'.$token);
+
+        self::assertResponseRedirects('/speler');
+        self::assertNull($this->responseGuestCookie($client));
+        self::assertSame(0, $this->entityManager()->getRepository(TafelsResult::class)->count(['player' => $player]));
     }
 
     public function testSuggestedNameAndEmojiAreStored(): void
