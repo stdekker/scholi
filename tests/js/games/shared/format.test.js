@@ -3,7 +3,7 @@ import { format, formatSum, formatTime } from '../../../../assets/games/shared/f
 
 describe('format', () => {
     it('fills placeholders', () => {
-        expect(format('Nog %count% bubbels', { count: 7 })).toBe('Nog 7 bubbels');
+        expect(format('Nog %count% sommen', { count: 7 })).toBe('Nog 7 sommen');
         expect(format('%sum% = %answer%', { sum: '2 × 6', answer: 12 })).toBe('2 × 6 = 12');
     });
 
