@@ -527,10 +527,9 @@ export default class BubbleGameController extends Controller {
             total: this.round.tasks.length,
         });
         this.revealFrozenAnswers();
-        // "Ga verder met een andere!" no longer applies: the completion panel says how it went.
-        if (frozen > 0) {
-            this.statusTarget.textContent = '';
-        }
+        // The last feedback ("Goed zo! …", "Ga verder met een andere!") no longer applies: the
+        // completion panel says how it went.
+        this.statusTarget.textContent = '';
         this.completeTarget.hidden = false;
         this.restartTarget.focus();
         this.recordRound();
