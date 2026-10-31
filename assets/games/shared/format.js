@@ -31,6 +31,36 @@ export function formatTime(ms) {
 }
 
 /**
+ * Writes a duration in words, in whole seconds rounded down, e.g. "41 seconden" or
+ * "1 minuut en 5 seconden".
+ *
+ * @param {number} ms
+ * @param {{secondsOne: string, secondsMany: string, minutesOne: string, minutesMany: string, both: string}} texts
+ *   translated texts: "1 seconde", "%count% seconden", "1 minuut", "%count% minuten",
+ *   "%minutes% en %seconds%"
+ * @returns {string}
+ */
+export function formatDuration(ms, texts) {
+    const total = Math.floor(Math.max(0, ms) / 1000);
+    const minutes = Math.floor(total / 60);
+    const seconds = total % 60;
+    const secondsText = format(seconds === 1 ? texts.secondsOne : texts.secondsMany, {
+        count: seconds,
+    });
+    if (minutes === 0) {
+        return secondsText;
+    }
+
+    const minutesText = format(minutes === 1 ? texts.minutesOne : texts.minutesMany, {
+        count: minutes,
+    });
+
+    return seconds === 0
+        ? minutesText
+        : format(texts.both, { minutes: minutesText, seconds: secondsText });
+}
+
+/**
  * Fills `%name%` placeholders in a (translated) message.
  *
  * @param {string} template e.g. "Nog %count% bubbels"

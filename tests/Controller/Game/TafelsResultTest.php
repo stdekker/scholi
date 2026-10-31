@@ -298,8 +298,7 @@ final class TafelsResultTest extends WebTestCase
         $client->request('GET', '/rekenen/tafel/6');
 
         self::assertSelectorExists('[data-tafels-save-url-value="/rekenen/tafel/6/resultaat"]');
-        self::assertSelectorTextContains('[data-tafels-target="savedMessage"]', 'Je resultaat is bewaard op deze computer.');
-        self::assertSelectorExists('[data-tafels-target="savedMessage"] a[href="/speler/nieuw"]');
+        self::assertSelectorNotExists('[data-tafels-target="savedMessage"]', 'Saving is silent; only a failure is shown');
         self::assertSelectorExists('[data-tafels-target="saveFailedMessage"]');
     }
 

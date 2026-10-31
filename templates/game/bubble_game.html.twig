@@ -6,6 +6,7 @@
     - values: its own Stimulus values, keyed by kebab-case name (arrays become JSON)
     - title, intro, passed_message, back_label: translated texts
     - time_limit_ms, time_limit (m:ss), save_url ('' = not saved), back_url
+    - next: {url, title} of the level recommended after passing, or null
 #}
 {% set c = controller %}
 
@@ -25,14 +26,20 @@
         data-{{ c }}-time-limit-value="{{ time_limit_ms }}"
         data-{{ c }}-save-url-value="{{ save_url }}"
         data-{{ c }}-practice-url-value="{{ path('app_practice') }}"
-        data-{{ c }}-practice-one-value="{{ 'game.bubbles.practice.one'|trans }}"
-        data-{{ c }}-practice-many-value="{{ 'game.bubbles.practice.many'|trans }}"
         data-{{ c }}-sum-labels-value="{{ {plus: 'game.bubbles.sum_label.plus'|trans, min: 'game.bubbles.sum_label.min'|trans, keer: 'game.bubbles.sum_label.keer'|trans}|json_encode }}"
         data-{{ c }}-correct-value="{{ 'game.bubbles.correct'|trans }}"
         data-{{ c }}-try-again-value="{{ 'game.bubbles.try_again'|trans }}"
         data-{{ c }}-frozen-value="{{ 'game.bubbles.frozen'|trans }}"
         data-{{ c }}-frozen-label-value="{{ 'game.bubbles.frozen_label'|trans }}"
         data-{{ c }}-revealed-label-value="{{ 'game.bubbles.revealed_label'|trans }}"
+        data-{{ c }}-duration-value="{{ 'game.bubbles.duration.text'|trans }}"
+        data-{{ c }}-duration-texts-value="{{ {
+            secondsOne: 'game.bubbles.duration.seconds_one'|trans,
+            secondsMany: 'game.bubbles.duration.seconds_many'|trans,
+            minutesOne: 'game.bubbles.duration.minutes_one'|trans,
+            minutesMany: 'game.bubbles.duration.minutes_many'|trans,
+            both: 'game.bubbles.duration.both'|trans,
+        }|json_encode }}"
         data-{{ c }}-done-frozen-value="{{ 'game.bubbles.done_frozen'|trans }}"
         data-{{ c }}-remaining-value="{{ 'game.bubbles.remaining'|trans }}"
         data-{{ c }}-time-up-value="{{ 'game.bubbles.timer.up'|trans }}"
@@ -76,7 +83,8 @@
             </div>
         </dialog>
 
-        <header class="bubble-game__header">
+        {# Hidden once the round is over: the completion panel takes its place. #}
+        <header class="bubble-game__header" data-{{ c }}-target="header">
             <h1>{{ title }}</h1>
             <p>{{ intro }}</p>
             <div class="bubble-game__meta">
@@ -127,18 +135,16 @@
             <p class="round-complete__message" data-{{ c }}-target="passedMessage">{{ passed_message }}</p>
             <p class="round-complete__message" data-{{ c }}-target="lateMessage" hidden>{{ 'game.bubbles.done_late'|trans }}</p>
             <p class="round-complete__message" data-{{ c }}-target="frozenMessage" hidden></p>
-            {% if app.user %}
-                <p class="round-complete__note" data-{{ c }}-target="savedMessage" hidden>{{ 'game.bubbles.saved'|trans }}</p>
-            {% else %}
-                {# Guests: the server keeps the result in a signed cookie until they make a player. #}
-                <p class="round-complete__note" data-{{ c }}-target="savedMessage" hidden>
-                    {{ 'game.bubbles.guest_saved'|trans }}
-                    <a href="{{ path('app_player_new') }}">{{ 'game.bubbles.guest_link'|trans }}</a>
-                </p>
-            {% endif %}
-            <p class="round-complete__note" data-{{ c }}-target="practiceMessage" hidden></p>
+            {# "Je deed het dit keer in 41 seconden.", filled in by the controller. #}
+            <p class="round-complete__duration" data-{{ c }}-target="durationMessage" hidden></p>
             <p class="round-complete__note" data-{{ c }}-target="saveFailedMessage" hidden>{{ 'game.bubbles.save_failed'|trans }}</p>
             <div class="round-complete__actions">
+                {% if next %}
+                    {# Replaces "Nog een keer" after passing. #}
+                    <a class="action-button" href="{{ next.url }}" data-{{ c }}-target="next" hidden>
+                        {{ 'game.bubbles.next'|trans({'%title%': next.title|trans}) }} <span aria-hidden="true">→</span>
+                    </a>
+                {% endif %}
                 <button type="button" class="action-button" data-action="{{ c }}#restart" data-{{ c }}-target="restart">
                     {{ 'game.bubbles.again'|trans }}
                 </button>

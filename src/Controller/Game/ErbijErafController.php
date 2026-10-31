@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
+use Symfony\Component\Translation\TranslatableMessage;
 
 /**
  * Rekenen › Erbij en eraf: the level picker and one round of a level.
@@ -53,6 +54,7 @@ final class ErbijErafController extends AbstractBubbleGameController
             $this->generateUrl('app_game_rekenen_erbij_eraf_result', ['level' => $level, 'operation' => $operation]),
             // Back to the picker with the same choice made.
             $this->generateUrl('app_game_rekenen_erbij_eraf', ['soort' => $operation]),
+            $this->next($erbijErafLevel, $erbijErafOperation),
         ));
     }
 
@@ -65,6 +67,30 @@ final class ErbijErafController extends AbstractBubbleGameController
         #[CurrentUser] ?Player $player = null,
     ): JsonResponse {
         return $this->storeResult($request, $player, Game::ErbijEraf, ErbijEraf::storedLevel(...$this->find($level, $operation)), $input);
+    }
+
+    /**
+     * The next level with the same operation; after the last level, the first level of the next
+     * operation (erbij → eraf → door elkaar).
+     *
+     * @return array{url: string, title: TranslatableMessage}|null
+     */
+    private function next(ErbijErafLevel $level, ErbijErafOperation $operation): ?array
+    {
+        $nextLevel = $level->next();
+        $nextOperation = null === $nextLevel ? $operation->next() : $operation;
+        if (null === $nextOperation) {
+            return null;
+        }
+        $nextLevel ??= ErbijErafLevel::Tot10;
+
+        return [
+            'url' => $this->generateUrl('app_game_rekenen_erbij_eraf_spel', ['level' => $nextLevel->slug(), 'operation' => $nextOperation->value]),
+            'title' => new TranslatableMessage('game.rekenen.erbij_eraf.title', [
+                '%level%' => new TranslatableMessage('game.rekenen.erbij_eraf.levels.'.$nextLevel->key().'.name'),
+                '%operation%' => new TranslatableMessage('game.rekenen.erbij_eraf.operations.'.$nextOperation->key()),
+            ]),
+        ];
     }
 
     /**

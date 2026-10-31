@@ -32,6 +32,16 @@ enum TafelsMix: int
         return null;
     }
 
+    /** The mix to recommend after passing this one; null after the last. */
+    public function next(): ?self
+    {
+        return match ($this) {
+            self::TwoToFive => self::TwoToTen,
+            self::TwoToTen => self::TwoToTwelve,
+            self::TwoToTwelve => null,
+        };
+    }
+
     public function slug(): string
     {
         return \sprintf('2-tot-%d', $this->lastTable());

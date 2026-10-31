@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
+use Symfony\Component\Translation\TranslatableMessage;
 
 /**
  * Rekenen › Tafels: the table picker, one table, and the "alle tafels" mixes.
@@ -44,6 +45,11 @@ final class TafelsController extends AbstractBubbleGameController
             Tafels::timeLimitMs($table),
             $this->generateUrl('app_game_rekenen_tafel_result', ['table' => $table]),
             $this->generateUrl('app_game_rekenen_tafels'),
+            // After the last table come the mixes.
+            $table < Tafels::MAX_TABLE ? [
+                'url' => $this->generateUrl('app_game_rekenen_tafel', ['table' => $table + 1]),
+                'title' => new TranslatableMessage('game.rekenen.tafels.title', ['%table%' => $table + 1]),
+            ] : $this->nextMix(TafelsMix::TwoToFive),
         ));
     }
 
@@ -91,6 +97,7 @@ final class TafelsController extends AbstractBubbleGameController
             Tafels::timeLimitMs($tafelsMix->value),
             $this->generateUrl('app_game_rekenen_mix_result', ['mix' => $mix]),
             $this->generateUrl('app_game_rekenen_alle'),
+            $this->nextMix($tafelsMix->next()),
         ));
     }
 
@@ -114,6 +121,17 @@ final class TafelsController extends AbstractBubbleGameController
         return $this->storeResult($request, $player, Game::Tafels, $this->findMix($mix)->value, $input);
     }
 
+    /**
+     * @return array{url: string, title: TranslatableMessage}|null
+     */
+    private function nextMix(?TafelsMix $mix): ?array
+    {
+        return null === $mix ? null : [
+            'url' => $this->generateUrl('app_game_rekenen_mix', ['mix' => $mix->slug()]),
+            'title' => new TranslatableMessage('game.rekenen.mixes.range', ['%last%' => $mix->lastTable()]),
+        ];
+    }
+
     private function findMix(string $slug): TafelsMix
     {
         return TafelsMix::fromSlug($slug) ?? throw $this->createNotFoundException();
@@ -122,7 +140,7 @@ final class TafelsController extends AbstractBubbleGameController
     /**
      * Renders the bubble game: for a single table (table), a fixed mix (mix) or the practised tables.
      *
-     * @param array{table?: int, mix?: TafelsMix, practised?: bool, tables: list<int>, time_limit_ms: int, time_limit: string, within_key: string, save_url: string, back_url: string} $game
+     * @param array{table?: int, mix?: TafelsMix, practised?: bool, tables: list<int>, time_limit_ms: int, time_limit: string, within_key: string, save_url: string, back_url: string, next: array{url: string, title: TranslatableMessage}|null} $game
      */
     private function renderGame(array $game): Response
     {

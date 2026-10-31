@@ -833,6 +833,15 @@ a.table-picker__link:hover {
     font-weight: 700;
 }
 
+.round-complete__duration {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.round-complete__time {
+    color: var(--color-primary);
+}
+
 .round-complete__actions {
     display: flex;
     flex-wrap: wrap;

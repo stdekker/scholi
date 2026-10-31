@@ -103,8 +103,9 @@ final class PracticeControllerTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/rekenen/tafel/6');
 
-        self::assertSelectorExists('[data-tafels-practice-url-value="/oefentijd"][data-tafels-practice-many-value*="%minutes% minuten"]');
-        self::assertSelectorExists('[data-tafels-target="practiceMessage"][hidden]');
+        self::assertSelectorExists('[data-tafels-practice-url-value="/oefentijd"]');
+        // The minutes show in the header, not in the completion panel.
+        self::assertSelectorNotExists('[data-tafels-target="practiceMessage"]');
     }
 
     /**

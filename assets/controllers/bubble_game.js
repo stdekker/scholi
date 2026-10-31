@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { format, formatSum, formatTime } from '../games/shared/format.js';
+import { format, formatDuration, formatSum, formatTime } from '../games/shared/format.js';
 import { appendDigit, removeLastDigit } from '../games/shared/input.js';
 import {
     checkAnswer,
@@ -59,19 +59,20 @@ export default class BubbleGameController extends Controller {
         'progress',
         'complete',
         'restart',
+        'next',
         'timer',
         'time',
         'passedMessage',
         'lateMessage',
         'frozenMessage',
+        'durationMessage',
+        'header',
         'readyDialog',
         'readyTime',
         'readyButton',
         'readyBack',
         'countdown',
-        'savedMessage',
         'saveFailedMessage',
-        'practiceMessage',
         'pauseDialog',
         'continueButton',
     ];
@@ -82,9 +83,6 @@ export default class BubbleGameController extends Controller {
         saveUrl: String,
         // Every finished round's seconds go here (practice time), saved or not.
         practiceUrl: String,
-        // "Deze week heb je al 1 minuut geoefend!" / "… al %minutes% minuten geoefend!"
-        practiceOne: String,
-        practiceMany: String,
         // Screen-reader label of a sum per operator: { plus: "%left% plus %right%", … }.
         sumLabels: Object,
         // "Goed zo! %sum% = %answer%"
@@ -98,6 +96,9 @@ export default class BubbleGameController extends Controller {
         revealedLabel: String,
         // Completion text when bubbles froze: "%solved% van de %total% …".
         doneFrozen: String,
+        // "Je deed het dit keer in %time%." and the texts formatDuration() builds %time% from.
+        duration: String,
+        durationTexts: Object,
         remaining: String,
         timeUp: String,
         go: String,
@@ -137,9 +138,8 @@ export default class BubbleGameController extends Controller {
         this.fieldTarget.replaceChildren();
         this.keypadTarget.hidden = true;
         this.completeTarget.hidden = true;
-        this.savedMessageTargets.forEach((message) => (message.hidden = true));
+        this.headerTarget.hidden = false;
         this.saveFailedMessageTargets.forEach((message) => (message.hidden = true));
-        this.practiceMessageTarget.hidden = true;
         this.statusTarget.textContent = '';
         this.updateProgress();
     }
@@ -565,13 +565,31 @@ export default class BubbleGameController extends Controller {
             solved: this.round.tasks.length - frozen,
             total: this.round.tasks.length,
         });
+        this.durationMessageTarget.hidden = frozen > 0;
+        this.renderDuration();
         this.revealFrozenAnswers();
         // The last feedback ("Goed zo! …", "Ga verder met een andere!") no longer applies: the
         // completion panel says how it went.
         this.statusTarget.textContent = '';
+        this.headerTarget.hidden = true;
         this.completeTarget.hidden = false;
-        this.restartTarget.focus();
+        // After passing, the next level replaces "Nog een keer"; otherwise "Nog een keer" is the main button.
+        const recommendNext = passed && this.hasNextTarget;
+        if (this.hasNextTarget) {
+            this.nextTarget.hidden = !recommendNext;
+        }
+        this.restartTarget.hidden = recommendNext;
+        (recommendNext ? this.nextTarget : this.restartTarget).focus();
         this.recordRound();
+    }
+
+    /** "Je deed het dit keer in <strong>41 seconden</strong>.", the time in colour. */
+    renderDuration() {
+        const time = document.createElement('strong');
+        time.className = 'round-complete__time';
+        time.textContent = formatDuration(roundDuration(this.round), this.durationTextsValue);
+        const [before, after = ''] = this.durationValue.split('%time%');
+        this.durationMessageTarget.replaceChildren(before, time, after);
     }
 
     /**
@@ -583,7 +601,7 @@ export default class BubbleGameController extends Controller {
         await this.saveResult();
     }
 
-    /** Adds this round's seconds to the practice time; shows the minutes of the last seven days. */
+    /** Adds this round's seconds to the practice time (the header shows the minutes). */
     async recordPractice() {
         const seconds = practiceSeconds(this.round);
         if (!this.practiceUrlValue || seconds === 0) {
@@ -591,23 +609,13 @@ export default class BubbleGameController extends Controller {
         }
 
         try {
-            const response = await fetch(this.practiceUrlValue, {
+            await fetch(this.practiceUrlValue, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify({ seconds }),
                 credentials: 'same-origin',
                 keepalive: true,
             });
-            if (!response.ok) {
-                return;
-            }
-
-            const { minutes } = await response.json();
-            if (Number.isInteger(minutes) && minutes > 0) {
-                const text = minutes === 1 ? this.practiceOneValue : this.practiceManyValue;
-                this.practiceMessageTarget.textContent = format(text, { minutes });
-                this.practiceMessageTarget.hidden = false;
-            }
         } catch {
             // Practice time is a bonus: a failure stays silent and never blocks the result.
         }
@@ -648,7 +656,6 @@ export default class BubbleGameController extends Controller {
             if (!response.ok) {
                 throw new Error(`Saving the result failed: HTTP ${response.status}`);
             }
-            this.savedMessageTargets.forEach((message) => (message.hidden = false));
         } catch {
             this.saveFailedMessageTargets.forEach((message) => (message.hidden = false));
         }

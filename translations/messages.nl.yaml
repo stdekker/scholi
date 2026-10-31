@@ -26,14 +26,18 @@ game:
         done_frozen: 'Je hebt %solved% van de %total% sommen goed gemaakt. Oefen nog even en probeer het opnieuw!'
         remaining: 'Sommen over: %count%'
         done_late: Je hebt alle sommen gemaakt. Iets sneller de volgende keer!
+        # "Je deed het dit keer in 41 seconden." (%time% is shown in colour)
+        duration:
+            text: 'Je deed het dit keer in %time%.'
+            seconds_one: 1 seconde
+            seconds_many: '%count% seconden'
+            minutes_one: 1 minuut
+            minutes_many: '%count% minuten'
+            both: '%minutes% en %seconds%'
         again: Nog een keer
-        saved: Je resultaat is bewaard.
+        # The level recommended after passing, e.g. "Volgende: De tafel van 7"
+        next: 'Volgende: %title%'
         save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
-        guest_saved: Je resultaat is bewaard op deze computer.
-        guest_link: Maak een speler om het altijd te bewaren.
-        practice:
-            one: Deze week heb je al 1 minuut geoefend!
-            many: 'Deze week heb je al %minutes% minuten geoefend!'
         # "Lukt het binnen %within%?"
         within:
             one_minute: een minuut
@@ -75,11 +79,11 @@ game:
             picker_intro: Welke tafel wil je oefenen?
             title: De tafel van %table%
             intro: Klik op een som en typ het antwoord. Lukt het binnen een minuut?
-            done: Super gedaan! Je hebt alle sommen van de tafel van %table% binnen een minuut gemaakt!
+            done: Helemaal goed! Je hebt alle sommen van de tafel van %table% sneller dan een minuut gemaakt.
             all:
                 intro: 'Twintig sommen uit de tafels 2 tot %last% door elkaar. Klik op een som en typ het antwoord. Lukt het binnen twee minuten?'
                 intro_practised: Twintig sommen uit de tafels die je al hebt geoefend, door elkaar. Klik op een som en typ het antwoord. Lukt het binnen twee minuten?
-                done: Super gedaan! Je hebt alle twintig sommen binnen twee minuten gemaakt!
+                done: Helemaal goed! Je hebt alle twintig sommen sneller dan twee minuten gemaakt.
             other_table: Andere tafel
             other_mix: Andere tafels
         erbij_eraf:
@@ -124,7 +128,7 @@ game:
                 door_elkaar: Door elkaar
             title: '%level%: %operation%'
             intro: 'Tien sommen. Klik op een som en typ het antwoord. Lukt het binnen %within%?'
-            done: 'Super gedaan! Je hebt alle sommen binnen %within% gemaakt!'
+            done: 'Helemaal goed! Je hebt alle sommen sneller dan %within% gemaakt.'
             other: Ander niveau
 
 player:

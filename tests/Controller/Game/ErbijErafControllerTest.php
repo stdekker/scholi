@@ -43,6 +43,31 @@ final class ErbijErafControllerTest extends WebTestCase
         self::assertSelectorTextContains('.table-picker--levels li:nth-child(3) .table-picker__note', '8 + 5');
     }
 
+    /**
+     * @return iterable<string, array{string, string|null, string}>
+     */
+    public static function nextLevels(): iterable
+    {
+        yield 'next level' => ['tot-10/erbij', '/rekenen/erbij-eraf/tot-20/erbij', 'Volgende: Tot 20 zonder brug: Erbij'];
+        yield 'erbij to eraf' => ['tot-100-brug/erbij', '/rekenen/erbij-eraf/tot-10/eraf', 'Volgende: Tot 10: Eraf'];
+        yield 'eraf to door elkaar' => ['tot-100-brug/eraf', '/rekenen/erbij-eraf/tot-10/door-elkaar', 'Volgende: Tot 10: Door elkaar'];
+        yield 'last' => ['tot-100-brug/door-elkaar', null, ''];
+    }
+
+    #[DataProvider('nextLevels')]
+    public function testRecommendsTheNextLevel(string $game, ?string $nextUrl, string $label): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/rekenen/erbij-eraf/'.$game);
+
+        if (null === $nextUrl) {
+            self::assertSelectorNotExists('[data-erbij-eraf-target="next"]');
+
+            return;
+        }
+        self::assertSelectorTextContains('.round-complete a[data-erbij-eraf-target="next"][hidden][href="'.$nextUrl.'"]', $label);
+    }
+
     public function testPickerSwitchesToAnotherSoort(): void
     {
         $client = static::createClient();
@@ -95,7 +120,7 @@ final class ErbijErafControllerTest extends WebTestCase
 
         self::assertSelectorExists('[data-erbij-eraf-time-limit-value="120000"]');
         self::assertSelectorTextSame('[role="timer"]', '2:00');
-        self::assertSelectorTextContains('[data-erbij-eraf-target="passedMessage"]', 'binnen twee minuten');
+        self::assertSelectorTextContains('[data-erbij-eraf-target="passedMessage"]', 'sneller dan twee minuten');
     }
 
     /**

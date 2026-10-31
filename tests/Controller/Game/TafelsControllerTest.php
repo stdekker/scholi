@@ -80,9 +80,40 @@ final class TafelsControllerTest extends WebTestCase
         self::assertSelectorExists('[data-controller="tafels"][data-tafels-tables-value="[2,3,4,5,6,7,8,9,10]"][data-tafels-time-limit-value="120000"]');
         self::assertSelectorTextSame('[role="timer"]', '2:00');
         self::assertSelectorTextSame('[data-tafels-target="readyTime"]', '2:00');
-        self::assertSelectorTextContains('[data-tafels-target="passedMessage"]', 'binnen twee minuten');
+        self::assertSelectorTextContains('[data-tafels-target="passedMessage"]', 'sneller dan twee minuten');
+        self::assertSelectorExists('[data-tafels-target="durationMessage"][hidden]');
+        self::assertSelectorExists('[data-tafels-duration-value="Je deed het dit keer in %time%."]');
         self::assertSelectorExists('a.ready-dialog__back[href="/rekenen/alle-tafels"]');
         self::assertSelectorTextContains('.round-complete a[href="/rekenen/alle-tafels"]', 'Andere tafels');
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function nextLevels(): iterable
+    {
+        yield 'table' => ['/rekenen/tafel/6', '/rekenen/tafel/7', 'Volgende: De tafel van 7'];
+        yield 'last table' => ['/rekenen/tafel/12', '/rekenen/alle-tafels/2-tot-5', 'Volgende: Tafels 2 tot 5'];
+        yield 'mix' => ['/rekenen/alle-tafels/2-tot-5', '/rekenen/alle-tafels/2-tot-10', 'Volgende: Tafels 2 tot 10'];
+        yield 'middle mix' => ['/rekenen/alle-tafels/2-tot-10', '/rekenen/alle-tafels/2-tot-12', 'Volgende: Tafels 2 tot 12'];
+    }
+
+    #[DataProvider('nextLevels')]
+    public function testRecommendsTheNextLevel(string $url, string $nextUrl, string $label): void
+    {
+        $client = static::createClient();
+        $client->request('GET', $url);
+
+        // Hidden until the round is passed (bubble_game.js).
+        self::assertSelectorTextContains('.round-complete a[data-tafels-target="next"][hidden][href="'.$nextUrl.'"]', $label);
+    }
+
+    public function testLastMixHasNoNextLevel(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/rekenen/alle-tafels/2-tot-12');
+
+        self::assertSelectorNotExists('[data-tafels-target="next"]');
     }
 
     public function testUnknownMixIsNotFound(): void
@@ -120,6 +151,7 @@ final class TafelsControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'Geoefende tafels');
         // Mixes don't count as practised tables; the round is never saved.
         self::assertSelectorExists('[data-tafels-tables-value="[3,7]"][data-tafels-time-limit-value="120000"][data-tafels-save-url-value=""]');
+        self::assertSelectorNotExists('[data-tafels-target="next"]', 'No next level after geoefende tafels');
     }
 
     public function testPractisedTablesForAPlayer(): void

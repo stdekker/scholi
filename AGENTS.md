@@ -114,12 +114,12 @@ The bubble is only how a sum is shown right now. User-facing text always says **
 - **Ready dialog:** every round (also after "Nog een keer") opens with a modal `<dialog>` showing the time limit and "Ben je er klaar voor?". A small "← Terug" link goes back to the game's picker (hidden once the countdown runs). The pupil presses "Ik ben er klaar voor!", sees a countdown of 3, 2, 1, "Start!" (`READY_COUNTDOWN_SECONDS`), and then the dialog closes. Escape can't close it. The bubble field stays empty until "Start!"; then the bubbles pop up one after another (`bubble--appearing`).
 - **Timer:** it starts when the ready countdown ends and is shown as m:ss plus a shrinking bar. If it runs out, the pupil sees "De tijd is om! Maak de sommen rustig af." and keeps playing. The limit comes from the server (`Game::timeLimitMs($level)` → `data-<game>-time-limit-value`), so the client's verdict and the stored result always agree.
 - **Pause:** a click on a menu link (anything in the site header) while a round is being played (after "Start!", before the last bubble) doesn't leave the page. The round pauses (`pauseRound()`/`resumeRound()`: the clock, the auto-open and the bobbing stop) and a dialog asks "Wil je stoppen?". "Verder spelen" or Escape resumes; the paused time counts neither for the limit nor for the practice time. "Stoppen" follows the link, and the unfinished round doesn't count. A Ctrl/⌘-click (new tab) is left alone.
-- When all bubbles are popped, a completion panel appears. Within the time it says the pupil **passed** ("Super gedaan! …"). Otherwise it says "Je hebt alle sommen gemaakt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and a link back to the picker.
+- When all bubbles are popped, a completion panel appears and the game's header (title, intro, timer) is hidden. Within the time it says the pupil **passed** ("Helemaal goed! … sneller dan een minuut gemaakt."). Otherwise it says "Je hebt alle sommen gemaakt. Iets sneller de volgende keer!". In both cases a line adds the round's time in words, in brand blue: "Je deed het dit keer in **41 seconden**." (`formatDuration()`; not shown when bubbles froze). It offers "Nog een keer" (new round, clock reset) and a link back to the picker. After **passing**, a "Volgende: …" link to the next level (`next`, from the game's controller) replaces "Nog een keer" as the main button. When the round is too slow or sums froze, or when there is no next level, "Nog een keer" is the main button.
 - Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
 - **Saving:** the finished round is POSTed as JSON (`{durationMs}`) to the game's `…/resultaat` route, and the server decides `passed`.
   - Each game stores its rounds per **level**, a number whose meaning belongs to the game (see below).
   - For a player, the result goes to the database as a `GameResult` (`game`, `level`), with a 201.
-  - For a guest, it goes into the **guest progress cookie** (200), and the panel says "Je resultaat is bewaard op deze computer" with a link to make a player.
+  - For a guest, it goes into the **guest progress cookie** (200). The panel says nothing about saving; only a failed save shows a note ("Je resultaat kon niet worden bewaard …").
 - **Progress:** the pickers and the player page show each level's best result: ⭐ + best time when done within the time, ✓ + best time when completed more slowly. Guests see the badges from their cookie on the pickers.
 - **Guest progress cookie** (`App\Security\GuestProgressCookie`, `App\Player\GuestProgress`):
   - `scholi_guest`: HttpOnly, SameSite=Lax, 400 days. It holds only the best time and date per game and level (never `passed`), and the practice seconds per day of the last seven days.
@@ -134,7 +134,7 @@ The bubble is only how a sum is shown right now. User-facing text always says **
   - **Storing:** seconds are summed per calendar day (Europe/Amsterdam). The window is today and the 6 days before (`WINDOW_DAYS`); the minutes are the summed seconds ÷ 60, rounded down.
     - For a player, they go in `PracticeDay` (one row per player and day). Each write deletes that player's rows from before the window.
     - For a guest, they go in the cookie under `"p":{"<Y-m-d>":seconds}`, also only for the window.
-  - **Showing:** the endpoint answers `{minutes}`. The completion panel shows "Deze week heb je al … geoefend!" once it is at least 1 minute, and the player page shows the same total.
+  - **Showing:** the endpoint answers `{minutes}`. The header (⏱️) and the player page show the total; the completion panel doesn't.
 - **Header:** for a player, the blue header shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. On phones (up to 40rem) the name is visually hidden and only the emoji shows (👤 without one). Guests see "Voortgang bewaren" instead.
 
 ### Rekenen › Tafels
@@ -144,6 +144,7 @@ The bubble is only how a sum is shown right now. User-facing text always says **
 - **Alle tafels** (`/rekenen/alle-tafels`) is a second menu of mixes. Each mix is 20 different sums (`ALL_TABLES_COUNT`) picked at random from all sums of its tables, with a **2-minute** clock (`Tafels::ALL_TIME_LIMIT_MS`). Mixes use the same template and controller as a single table; `tafelsSums()` takes the list of tables.
   - **Tafels 2 tot 5 / 2 tot 10 / 2 tot 12** (`/rekenen/alle-tafels/2-tot-{5,10,12}`, `App\Game\TafelsMix`). Their results are stored under the enum's value as level: -5, 0 and -12. "2 tot 10" keeps 0, which was the only "alle tafels" before the mixes, so older results and guest cookies stay valid. Each mix has its own badge on the menu and its own row on the player page.
   - **Geoefende tafels** (`/rekenen/alle-tafels/geoefend`): every table (1–12) with a finished round (✓ or ⭐), from the database or the guest cookie. It needs at least 2 such tables (`Tafels::MIN_PRACTISED_TABLES`). Until then the tile isn't a link, and the URL redirects to the menu. Its rounds are never saved, because the tables change per pupil.
+- Next level: table n → n+1, table 12 → Tafels 2 tot 5 → 2 tot 10 → 2 tot 12 (`TafelsMix::next()`). There is none after 2 tot 12 or after geoefende tafels.
 - Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Server: `TafelsController`, `Tafels`, `TafelsMix`.
 
 ### Rekenen › Erbij en eraf
@@ -162,6 +163,7 @@ The bubble is only how a sum is shown right now. User-facing text always says **
 | Tot 100 met brug (`tot-100-brug`) | 38 + 7 | 52 − 18 | above 20, the units cross the ten | **2 min** |
 
 - A round is stored as level `ErbijEraf::storedLevel()` = level × 10 + operation code (erbij 1, eraf 2, door elkaar 3), for example 32 = tot 20 met brug, eraf.
+- Next level: the next level with the same operation. After tot 100 met brug comes tot 10 of the next operation (erbij → eraf → door elkaar); there is none after door elkaar.
 - Logic: `assets/games/rekenen/erbij_eraf.js`. Wiring: `assets/controllers/erbij_eraf_controller.js`. Server: `ErbijErafController`, `ErbijEraf`, `ErbijErafLevel`, `ErbijErafOperation`.
 
 ## Players (accounts)
