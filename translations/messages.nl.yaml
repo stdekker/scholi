@@ -77,27 +77,39 @@ game:
         erbij_eraf:
             name: Erbij en eraf
             description: Plussommen en minsommen tot 10, tot 20 en tot 100.
-            picker_intro: Kies je niveau. Wil je erbij, eraf of allebei door elkaar oefenen?
-            example: 'Bijvoorbeeld %example%'
+            choose_operation: Wat wil je oefenen?
+            choose_level: Kies je niveau
             levels:
                 tot_10:
                     name: Tot 10
                     example: 3 + 4 en 9 − 5
+                    example_plus: 3 + 4
+                    example_min: 9 − 5
                 tot_20:
                     name: Tot 20 zonder brug
                     example: 12 + 5 en 17 − 4
+                    example_plus: 12 + 5
+                    example_min: 17 − 4
                 tot_20_brug:
                     name: Tot 20 met brug
                     example: 8 + 5 en 13 − 6
+                    example_plus: 8 + 5
+                    example_min: 13 − 6
                 tientallen:
                     name: Tientallen tot 100
                     example: 30 + 40 en 90 − 50
+                    example_plus: 30 + 40
+                    example_min: 90 − 50
                 tot_100:
                     name: Tot 100 zonder brug
                     example: 34 + 25 en 68 − 25
+                    example_plus: 34 + 25
+                    example_min: 68 − 25
                 tot_100_brug:
                     name: Tot 100 met brug
                     example: 38 + 7 en 52 − 18
+                    example_plus: 38 + 7
+                    example_min: 52 − 18
             operations:
                 erbij: Erbij
                 eraf: Eraf

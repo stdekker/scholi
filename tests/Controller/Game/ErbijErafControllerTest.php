@@ -16,24 +16,47 @@ final class ErbijErafControllerTest extends WebTestCase
 {
     use PlayerTestTrait;
 
-    public function testPickerListsEveryLevelAndOperation(): void
+    public function testPickerShowsTheLevelsForErbijByDefault(): void
     {
         $client = static::createClient();
         $crawler = $client->request('GET', '/rekenen/erbij-eraf');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('meta[name="turbo-cache-control"][content="no-cache"]');
-        self::assertSelectorCount(6, '.level-picker__level');
-        self::assertSelectorTextContains('.level-picker__level:nth-child(3) h2', 'Tot 20 met brug');
-        self::assertSelectorTextContains('.level-picker__level:nth-child(3) .level-picker__example', '8 + 5');
+        self::assertSame(
+            ['/rekenen/erbij-eraf?soort=erbij', '/rekenen/erbij-eraf?soort=eraf', '/rekenen/erbij-eraf?soort=door-elkaar'],
+            $crawler->filter('.operation-switch a')->each(static fn ($link): string => (string) $link->attr('href')),
+        );
+        self::assertSelectorTextContains('.operation-switch a[aria-current="page"]', 'Erbij');
+        self::assertSelectorCount(1, '.operation-switch a[aria-current]');
 
-        $links = $crawler->filter('.level-picker a.table-picker__link')->each(static fn ($link): string => (string) $link->attr('href'));
-        self::assertCount(18, $links);
-        self::assertSame(['/rekenen/erbij-eraf/tot-10/erbij', '/rekenen/erbij-eraf/tot-10/eraf', '/rekenen/erbij-eraf/tot-10/door-elkaar'], \array_slice($links, 0, 3));
-        self::assertContains('/rekenen/erbij-eraf/tot-100-brug/door-elkaar', $links);
+        $links = $crawler->filter('.table-picker--levels a.table-picker__link')->each(static fn ($link): string => (string) $link->attr('href'));
+        self::assertSame([
+            '/rekenen/erbij-eraf/tot-10/erbij',
+            '/rekenen/erbij-eraf/tot-20/erbij',
+            '/rekenen/erbij-eraf/tot-20-brug/erbij',
+            '/rekenen/erbij-eraf/tientallen/erbij',
+            '/rekenen/erbij-eraf/tot-100/erbij',
+            '/rekenen/erbij-eraf/tot-100-brug/erbij',
+        ], $links);
+        self::assertSelectorTextContains('.table-picker--levels li:nth-child(3)', 'Tot 20 met brug');
+        self::assertSelectorTextContains('.table-picker--levels li:nth-child(3) .table-picker__note', '8 + 5');
     }
 
-    public function testPickerShowsBadgesForAGuest(): void
+    public function testPickerSwitchesToAnotherSoort(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/rekenen/erbij-eraf?soort=eraf');
+
+        self::assertSelectorTextContains('.operation-switch a[aria-current="page"]', 'Eraf');
+        self::assertSelectorExists('.table-picker--levels a[href="/rekenen/erbij-eraf/tot-20-brug/eraf"]');
+        self::assertSelectorTextContains('.table-picker--levels li:nth-child(3) .table-picker__note', '13 − 6');
+
+        $client->request('GET', '/rekenen/erbij-eraf?soort=keer');
+        self::assertSelectorTextContains('.operation-switch a[aria-current="page"]', 'Erbij', 'An unknown soort falls back to erbij');
+    }
+
+    public function testPickerShowsBadgesOfTheChosenSoort(): void
     {
         $client = static::createClient();
         $this->setGuestProgress($client, (new GuestProgress())
@@ -41,9 +64,11 @@ final class ErbijErafControllerTest extends WebTestCase
             ->withResult(Game::Tafels, 6, 45_000, new \DateTimeImmutable()));
 
         $client->request('GET', '/rekenen/erbij-eraf');
+        self::assertSelectorCount(0, '.progress-badge');
 
+        $client->request('GET', '/rekenen/erbij-eraf?soort=eraf');
         self::assertSelectorCount(1, '.progress-badge');
-        self::assertSelectorTextContains('.level-picker__level:nth-child(3) li:nth-child(2) .progress-badge--passed', '0:45');
+        self::assertSelectorTextContains('.table-picker--levels li:nth-child(3) .progress-badge--passed', '0:45');
     }
 
     public function testGamePageConfiguresTheGame(): void
@@ -58,8 +83,8 @@ final class ErbijErafControllerTest extends WebTestCase
         self::assertSelectorExists('[data-erbij-eraf-save-url-value="/rekenen/erbij-eraf/tot-20-brug/eraf/resultaat"]');
         self::assertSelectorExists('[data-erbij-eraf-sum-labels-value*="%left% min %right%"]');
         self::assertSelectorTextSame('[role="timer"]', '1:00');
-        self::assertSelectorExists('a.ready-dialog__back[href="/rekenen/erbij-eraf"]');
-        self::assertSelectorTextContains('.round-complete a[href="/rekenen/erbij-eraf"]', 'Ander niveau');
+        self::assertSelectorExists('a.ready-dialog__back[href="/rekenen/erbij-eraf?soort=eraf"]');
+        self::assertSelectorTextContains('.round-complete a[href="/rekenen/erbij-eraf?soort=eraf"]', 'Ander niveau');
         self::assertSelectorExists('meta[name="turbo-cache-control"][content="no-cache"]');
     }
 

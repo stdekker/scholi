@@ -136,7 +136,7 @@ Each game only decides **which sums** a round asks and its texts. Everything els
 
 ### Rekenen › Erbij en eraf
 
-- `/rekenen/erbij-eraf` lists six levels (`ErbijErafLevel`, roughly groep 3 to 5). Each level has three tiles (`ErbijErafOperation`): **Erbij** (plussommen), **Eraf** (minsommen) and **Door elkaar** (5 + 5). Each tile has its own badge.
+- `/rekenen/erbij-eraf` asks two simple questions on one page. First "Wat wil je oefenen?": a row of three toggle links (`ErbijErafOperation`) for **Erbij** (plussommen), **Eraf** (minsommen) and **Door elkaar** (5 + 5). They reload the page with `?soort=…`, with erbij as the default; the chosen one has `aria-current`. Then "Kies je niveau": six level tiles (`ErbijErafLevel`, roughly groep 3 to 5), each with an example sum and the badge for that choice. The game's back links return to the same `?soort=`.
 - `/rekenen/erbij-eraf/{level}/{operation}` is the game, for example `/rekenen/erbij-eraf/tot-20-brug/eraf`. Unknown slugs give a 404.
 - A round has **ten** different sums, picked at random from every sum the level allows (`allSums()`/`pickSums()` in `assets/games/rekenen/erbij_eraf.js`). Terms are never 0, answers never negative and at most 100.
 

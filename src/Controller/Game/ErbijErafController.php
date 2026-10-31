@@ -24,12 +24,15 @@ final class ErbijErafController extends AbstractBubbleGameController
 {
     private const array REQUIREMENTS = ['level' => ErbijErafLevel::SLUG_PATTERN, 'operation' => ErbijErafOperation::PATTERN];
 
+    /** Erbij, eraf or door elkaar (?soort=, erbij by default), then one of the levels. */
     #[Route('/rekenen/erbij-eraf', name: 'app_game_rekenen_erbij_eraf', methods: ['GET'])]
     public function index(Request $request, #[CurrentUser] ?Player $player = null): Response
     {
         [$progress, $invalidCookie] = $this->progress($request, $player, Game::ErbijEraf);
 
         $response = $this->render('game/rekenen/erbij_eraf/index.html.twig', [
+            'operations' => ErbijErafOperation::cases(),
+            'operation' => ErbijErafOperation::tryFrom($request->query->getString('soort')) ?? ErbijErafOperation::Erbij,
             'grid' => ErbijEraf::grid(),
             'progress' => $progress,
         ]);
@@ -48,7 +51,8 @@ final class ErbijErafController extends AbstractBubbleGameController
         ] + $this->bubbleGame(
             $erbijErafLevel->timeLimitMs(),
             $this->generateUrl('app_game_rekenen_erbij_eraf_result', ['level' => $level, 'operation' => $operation]),
-            $this->generateUrl('app_game_rekenen_erbij_eraf'),
+            // Back to the picker with the same choice made.
+            $this->generateUrl('app_game_rekenen_erbij_eraf', ['soort' => $operation]),
         ));
     }
 
