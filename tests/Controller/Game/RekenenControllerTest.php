@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Game;
 
+use App\Player\GuestProgress;
+use App\Tests\Support\PlayerTestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class RekenenControllerTest extends WebTestCase
 {
-    public function testPickerLinksToTablesTwoToTen(): void
+    use PlayerTestTrait;
+
+    public function testPickerLinksToTablesOneToTwelve(): void
     {
         $client = static::createClient();
         $crawler = $client->request('GET', '/rekenen');
@@ -19,7 +23,7 @@ final class RekenenControllerTest extends WebTestCase
         );
 
         self::assertSame(
-            ['Tafel van 2', 'Tafel van 3', 'Tafel van 4', 'Tafel van 5', 'Tafel van 6', 'Tafel van 7', 'Tafel van 8', 'Tafel van 9', 'Tafel van 10', 'Alle tafels'],
+            [...array_map(static fn (int $table): string => 'Tafel van '.$table, range(1, 12)), 'Alle tafels'],
             $links,
         );
     }
@@ -31,7 +35,7 @@ final class RekenenControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'De tafel van 6');
-        self::assertSelectorExists('[data-controller="tafels"][data-tafels-table-value="6"]');
+        self::assertSelectorExists('[data-controller="tafels"][data-tafels-tables-value="[6]"]');
         self::assertSelectorExists('meta[name="turbo-cache-control"][content="no-cache"]');
         self::assertSelectorTextSame('[role="timer"]', '1:00');
         self::assertSelectorTextSame('dialog.ready-dialog h2', 'Ben je er klaar voor?');
@@ -43,18 +47,88 @@ final class RekenenControllerTest extends WebTestCase
         self::assertSelectorExists('[data-tafels-done-frozen-value*="%solved% van de %total%"]');
     }
 
-    public function testAlleTafelsPageConfiguresTheGame(): void
+    public function testAlleTafelsPicksAMix(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/rekenen/alle-tafels');
+        $crawler = $client->request('GET', '/rekenen/alle-tafels');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Alle tafels');
+        self::assertSelectorExists('meta[name="turbo-cache-control"][content="no-cache"]');
+        self::assertSame(
+            ['/rekenen/alle-tafels/2-tot-5', '/rekenen/alle-tafels/2-tot-10', '/rekenen/alle-tafels/2-tot-12'],
+            $crawler->filter('a.table-picker__link')->each(static fn ($link): string => (string) $link->attr('href')),
+        );
+        self::assertSelectorTextContains('.table-picker li:nth-child(1)', 'Tafels 2 tot 5');
+        // Without finished tables "geoefende tafels" is not a link yet.
+        self::assertSelectorTextContains('.table-picker__link--locked', 'Maak eerst twee tafels af.');
+    }
+
+    public function testMixPageConfiguresTheGame(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/rekenen/alle-tafels/2-tot-10');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Tafels 2 tot 10');
         self::assertSelectorTextContains('.bubble-game__header', 'binnen twee minuten');
-        self::assertSelectorExists('[data-controller="tafels"][data-tafels-table-value="0"][data-tafels-time-limit-value="120000"]');
+        self::assertSelectorExists('[data-controller="tafels"][data-tafels-tables-value="[2,3,4,5,6,7,8,9,10]"][data-tafels-time-limit-value="120000"]');
         self::assertSelectorTextSame('[role="timer"]', '2:00');
         self::assertSelectorTextSame('[data-tafels-target="readyTime"]', '2:00');
         self::assertSelectorTextContains('[data-tafels-target="passedMessage"]', 'binnen twee minuten');
+        self::assertSelectorExists('a.ready-dialog__back[href="/rekenen/alle-tafels"]');
+        self::assertSelectorTextContains('.round-complete a[href="/rekenen/alle-tafels"]', 'Andere tafels');
+    }
+
+    public function testUnknownMixIsNotFound(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/rekenen/alle-tafels/2-tot-11');
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testPractisedTablesNeedTwoFinishedTables(): void
+    {
+        $client = static::createClient();
+        $this->setGuestProgress($client, (new GuestProgress())->withResult(7, 75_000, new \DateTimeImmutable()));
+
+        $client->request('GET', '/rekenen/alle-tafels/geoefend');
+
+        self::assertResponseRedirects('/rekenen/alle-tafels');
+    }
+
+    public function testPractisedTablesForAGuest(): void
+    {
+        $client = static::createClient();
+        $this->setGuestProgress($client, (new GuestProgress())
+            ->withResult(7, 75_000, new \DateTimeImmutable())
+            ->withResult(3, 45_000, new \DateTimeImmutable())
+            ->withResult(0, 110_000, new \DateTimeImmutable()));
+
+        $client->request('GET', '/rekenen/alle-tafels');
+        self::assertSelectorTextContains('a.table-picker__link[href="/rekenen/alle-tafels/geoefend"]', '3, 7');
+
+        $client->request('GET', '/rekenen/alle-tafels/geoefend');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Geoefende tafels');
+        // Mixes don't count as practised tables; the round is never saved.
+        self::assertSelectorExists('[data-tafels-tables-value="[3,7]"][data-tafels-time-limit-value="120000"][data-tafels-save-url-value=""]');
+    }
+
+    public function testPractisedTablesForAPlayer(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $this->addResult($player, 12, 50_000);
+        $this->addResult($player, 1, 70_000);
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/rekenen/alle-tafels/geoefend');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-tafels-tables-value="[1,12]"]');
     }
 
     #[DataProvider('invalidTables')]
@@ -72,8 +146,7 @@ final class RekenenControllerTest extends WebTestCase
     public static function invalidTables(): iterable
     {
         yield ['0'];
-        yield ['1'];
-        yield ['11'];
+        yield ['13'];
         yield ['100'];
         yield ['02'];
         yield ['abc'];

@@ -33,12 +33,13 @@
     <section class="player-card">
         <h2>{{ 'player.progress.title'|trans }}</h2>
         <ul class="progress-list">
-            {% for table in tables|merge([all_tables]) %}
-                {% set result = progress[table] ?? null %}
+            {# Tables 1–12 first, then the "alle tafels" mixes (stored under their own table number). #}
+            {% set rows = tables|map(table => {table: table, label: 'game.rekenen.table'|trans({'%table%': table})})
+                |merge(mixes|map(mix => {table: mix.value, label: 'game.rekenen.mixes.range'|trans({'%last%': mix.lastTable})})) %}
+            {% for row in rows %}
+                {% set result = progress[row.table] ?? null %}
                 <li class="progress-list__item">
-                    <span class="progress-list__table">
-                        {{- table == all_tables ? 'game.rekenen.all_tables'|trans : 'game.rekenen.table'|trans({'%table%': table}) -}}
-                    </span>
+                    <span class="progress-list__table">{{ row.label }}</span>
                     {% if result is null %}
                         <span class="progress-list__status">{{ 'player.progress.not_yet'|trans }}</span>
                     {% else %}

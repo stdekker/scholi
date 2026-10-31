@@ -230,7 +230,7 @@ body {
 
 /* Rekenen: table picker */
 
-/* Fixed columns so every tile has the same size: 2 on phones, a 3 × 3 grid (tables 2–10) above. */
+/* Fixed columns so every tile has the same size: 2 on phones, a 3 × 4 grid (tables 1–12) above. */
 .table-picker {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -266,8 +266,35 @@ body {
     white-space: nowrap;
 }
 
+/* Phones: one tile wide, centred on its own row under the 2-column grid. */
+.table-picker__item--all {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc((100% - var(--space-2)) / 2);
+}
+
 .table-picker__link--all {
     border-color: var(--color-primary);
+}
+
+/* "Alle tafels" mixes: wider tiles for the longer labels, one column on phones. */
+.table-picker--mixes {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.table-picker__note {
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+/* "Geoefende tafels" before two tables are finished: not a link, so no hover. */
+.table-picker__link--locked {
+    margin: 0;
+    border-style: dashed;
+}
+
+.table-picker__back {
+    margin-block-start: var(--space-3);
 }
 
 @media (min-width: 40rem) {
@@ -275,9 +302,15 @@ body {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    /* Same size as the other tiles, centred under the 3 × 3 grid. */
+    .table-picker--mixes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* Same size as the other tiles, centred under the 3 × 4 grid. */
     .table-picker__item--all {
         grid-column: 2;
+        justify-self: stretch;
+        width: auto;
     }
 
     .table-picker__link {
@@ -285,7 +318,7 @@ body {
     }
 }
 
-.table-picker__link:hover {
+a.table-picker__link:hover {
     border-color: var(--color-primary);
 }
 

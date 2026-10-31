@@ -76,7 +76,7 @@ final readonly class GuestProgressCookie
             $results[$table] = [$result['bestMs'], $result['completedAt']->getTimestamp()];
         }
 
-        // (object): keeps "r" a JSON object, also when the only key is 0 (alle tafels).
+        // (object): keeps "r" a JSON object, also when the only key is 0 (tafels 2 tot 10).
         $payload = self::base64UrlEncode(json_encode(['v' => self::VERSION, 'r' => (object) $results], \JSON_THROW_ON_ERROR));
 
         return $payload.'.'.$this->sign($payload);
@@ -104,7 +104,7 @@ final readonly class GuestProgressCookie
         $progress = new GuestProgress();
         foreach ($data['r'] as $table => $result) {
             // Signed by us, so a bad entry can only come from an older version of the rules: skip it.
-            if (!\is_int($table) || !self::isKnownTable($table) || !\is_array($result) || 2 !== \count($result)) {
+            if (!\is_int($table) || !Tafels::isKnown($table) || !\is_array($result) || 2 !== \count($result)) {
                 continue;
             }
 
@@ -127,10 +127,5 @@ final readonly class GuestProgressCookie
     private static function base64UrlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
-    }
-
-    private static function isKnownTable(int $table): bool
-    {
-        return Tafels::ALL === $table || \in_array($table, Tafels::tables(), true);
     }
 }

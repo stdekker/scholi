@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Security;
 
-use App\Game\Tafels;
+use App\Game\TafelsMix;
 use App\Player\GuestProgress;
 use App\Security\GuestProgressCookie;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -20,24 +20,27 @@ final class GuestProgressCookieTest extends TestCase
     {
         $cookie = new GuestProgressCookie(self::SECRET);
         $progress = (new GuestProgress())
-            ->withResult(Tafels::ALL, 110_000, new \DateTimeImmutable('@1793000000'))
+            ->withResult(TafelsMix::TwoToTen->value, 110_000, new \DateTimeImmutable('@1793000000'))
+            ->withResult(TafelsMix::TwoToFive->value, 80_000, new \DateTimeImmutable('@1793000000'))
+            ->withResult(TafelsMix::TwoToTwelve->value, 115_000, new \DateTimeImmutable('@1793000000'))
             ->withResult(6, 48_200, new \DateTimeImmutable('@1792000000'));
 
         $decoded = $cookie->decode($cookie->encode($progress));
 
         self::assertNotNull($decoded);
-        self::assertSame([Tafels::ALL, 6], array_keys($decoded->results));
-        self::assertSame(110_000, $decoded->results[Tafels::ALL]['bestMs']);
+        // Negative JSON keys ("-12") come back as ints too.
+        self::assertSame([-12, -5, 0, 6], array_keys($decoded->results));
+        self::assertSame(110_000, $decoded->results[TafelsMix::TwoToTen->value]['bestMs']);
         self::assertSame(1_792_000_000, $decoded->results[6]['completedAt']->getTimestamp());
     }
 
     public function testOnlyAlleTafelsStaysAnObject(): void
     {
         $cookie = new GuestProgressCookie(self::SECRET);
-        $value = $cookie->encode((new GuestProgress())->withResult(Tafels::ALL, 90_000, new \DateTimeImmutable()));
+        $value = $cookie->encode((new GuestProgress())->withResult(TafelsMix::TwoToTen->value, 90_000, new \DateTimeImmutable()));
 
         self::assertStringContainsString('"r":{"0":[90000,', $this->payload($value));
-        self::assertSame([Tafels::ALL], array_keys($cookie->decode($value)->results ?? []));
+        self::assertSame([TafelsMix::TwoToTen->value], array_keys($cookie->decode($value)->results ?? []));
     }
 
     public function testEmptyProgressRoundTrips(): void
@@ -100,8 +103,8 @@ final class GuestProgressCookieTest extends TestCase
     public function testSkipsEntriesOutsideTheRules(): void
     {
         $payload = self::base64Url(json_encode(['v' => 1, 'r' => [
-            '1' => [5_000, 0],         // no table 1
-            '11' => [5_000, 0],        // no table 11
+            '-1' => [5_000, 0],        // no table -1
+            '13' => [5_000, 0],        // no table 13
             '3' => [0, 0],             // too fast
             '4' => [3_600_001, 0],     // more than an hour
             '5' => ['5000', 0],        // not an int

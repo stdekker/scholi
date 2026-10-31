@@ -8,6 +8,7 @@ use App\Entity\Player;
 use App\Entity\TafelsResult;
 use App\Game\TableProgress;
 use App\Game\Tafels;
+use App\Game\TafelsMix;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -63,8 +64,8 @@ final class TableProgressTest extends TestCase
 
     public function testAlleTafelsGetsTwoMinutes(): void
     {
-        self::assertSame(120_000, Tafels::timeLimitMs(Tafels::ALL));
-        self::assertTrue(Tafels::isPassed(Tafels::ALL, 120_000));
-        self::assertFalse(Tafels::isPassed(Tafels::ALL, 120_001));
+        self::assertSame(120_000, Tafels::timeLimitMs(TafelsMix::TwoToTen->value));
+        self::assertTrue(Tafels::isPassed(TafelsMix::TwoToTen->value, 120_000));
+        self::assertFalse(Tafels::isPassed(TafelsMix::TwoToTen->value, 120_001));
     }
 }

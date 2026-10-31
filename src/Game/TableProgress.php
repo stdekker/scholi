@@ -23,9 +23,10 @@ final readonly class TableProgress
         return Tafels::formatTime($this->bestMs);
     }
 
-    public function isAllTables(): bool
+    /** Whether this is a TafelsMix ("alle tafels") rather than a single table. */
+    public function isMix(): bool
     {
-        return Tafels::ALL === $this->table;
+        return null !== TafelsMix::tryFrom($this->table);
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Entity\Player;
 use App\Entity\TafelsResult;
 use App\Form\PlayerType;
 use App\Game\Tafels;
+use App\Game\TafelsMix;
 use App\Player\FunNameGenerator;
 use App\Repository\PlayerRepository;
 use App\Repository\TafelsResultRepository;
@@ -53,7 +54,7 @@ final class PlayerController extends AbstractController
             ),
             'is_new' => $request->query->getBoolean('nieuw'),
             'tables' => Tafels::tables(),
-            'all_tables' => Tafels::ALL,
+            'mixes' => TafelsMix::cases(),
             'progress' => $results->progressFor($player),
         ]);
     }

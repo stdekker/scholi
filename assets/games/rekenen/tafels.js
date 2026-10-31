@@ -1,9 +1,9 @@
 /**
  * Tafels (multiplication tables) game logic.
  *
- * A round practises one table (2–10): ten sums "multiplier × table" for multipliers 1–10,
- * in random order. "Alle tafels" (table ALL_TABLES) instead picks ALL_TABLES_COUNT different
- * sums from all tables. A task is solved once the pupil enters the right answer; after
+ * A round practises one table (1–12): ten sums "multiplier × table" for multipliers 1–10,
+ * in random order. "Alle tafels" mixes several tables and instead picks ALL_TABLES_COUNT
+ * different sums from all their sums. A task is solved once the pupil enters the right answer; after
  * MAX_ATTEMPTS wrong answers it is frozen instead. The round is complete when every task is
  * solved or frozen, whether or not the time has run out.
  *
@@ -16,13 +16,11 @@
 
 import { shuffle } from '../shared/random.js';
 
-export const MIN_TABLE = 2;
-export const MAX_TABLE = 10;
-/** Table number for "alle tafels" (mirrors App\Game\Tafels::ALL). */
-export const ALL_TABLES = 0;
+export const MIN_TABLE = 1;
+export const MAX_TABLE = 12;
 /** Wrong answers after which a bubble freezes. */
 export const MAX_ATTEMPTS = 3;
-/** Bubbles in an "alle tafels" round (the Dutch texts say "twintig"). */
+/** Bubbles in a round of several tables (the Dutch texts say "twintig"). */
 export const ALL_TABLES_COUNT = 20;
 export const ANSWER_MAX_LENGTH = 3;
 /** Default only: the page passes the server's limit (App\Game\Tafels::TIME_LIMIT_MS) to createRound. */
@@ -42,7 +40,7 @@ export const READY_COUNTDOWN_SECONDS = 3;
 
 /**
  * @typedef {object} Round
- * @property {number} table 2–10, or ALL_TABLES
+ * @property {number[]} tables one table (1–12), or several for "alle tafels"
  * @property {Task[]} tasks
  * @property {number} timeLimitMs
  * @property {number | null} startedAt timestamp (ms) the clock started, null before that
@@ -50,35 +48,37 @@ export const READY_COUNTDOWN_SECONDS = 3;
  */
 
 /**
- * Creates a new round: the ten sums of one table in random order, or for ALL_TABLES
- * ALL_TABLES_COUNT different sums picked at random from all tables.
+ * Creates a new round: the ten sums of one table in random order, or for several tables
+ * ALL_TABLES_COUNT different sums picked at random from all their sums.
  *
- * @param {number} table 2–10, or ALL_TABLES
+ * @param {number[]} tables at least one, each an integer from MIN_TABLE to MAX_TABLE, no duplicates
  * @param {() => number} [random] source of randomness in [0, 1)
  * @param {number} [timeLimitMs]
  * @returns {Round}
  */
-export function createRound(table, random = Math.random, timeLimitMs = TIME_LIMIT_MS) {
-    const isAll = table === ALL_TABLES;
-    if (!isAll && (!Number.isInteger(table) || table < MIN_TABLE || table > MAX_TABLE)) {
+export function createRound(tables, random = Math.random, timeLimitMs = TIME_LIMIT_MS) {
+    const isTable = (table) => Number.isInteger(table) && table >= MIN_TABLE && table <= MAX_TABLE;
+    if (tables.length === 0 || new Set(tables).size !== tables.length || !tables.every(isTable)) {
         throw new RangeError(
-            `Table must be ${ALL_TABLES} or an integer from ${MIN_TABLE} to ${MAX_TABLE}`,
+            `Tables must be different integers from ${MIN_TABLE} to ${MAX_TABLE}, at least one`,
         );
     }
 
-    const tables = isAll ? range(MIN_TABLE, MAX_TABLE) : [table];
-    const sums = tables.flatMap((t) =>
-        range(1, 10).map((multiplier) => ({ multiplier, table: t })),
+    const sums = tables.flatMap((table) =>
+        range(1, 10).map((multiplier) => ({ multiplier, table })),
     );
-    const picked = shuffle(sums, random).slice(0, isAll ? ALL_TABLES_COUNT : sums.length);
+    const picked = shuffle(sums, random).slice(
+        0,
+        tables.length > 1 ? ALL_TABLES_COUNT : sums.length,
+    );
 
     return {
-        table,
-        tasks: picked.map(({ multiplier, table: t }, index) => ({
+        tables: [...tables],
+        tasks: picked.map(({ multiplier, table }, index) => ({
             id: index + 1,
             multiplier,
-            table: t,
-            answer: multiplier * t,
+            table,
+            answer: multiplier * table,
             solved: false,
             wrongAttempts: 0,
             frozen: false,

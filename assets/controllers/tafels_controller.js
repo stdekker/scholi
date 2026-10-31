@@ -64,9 +64,10 @@ export default class extends Controller {
     ];
 
     static values = {
-        table: Number,
+        // One table, or several for "alle tafels".
+        tables: Array,
         timeLimit: Number,
-        // Empty for guests: only logged-in players get their results saved.
+        // Empty when the round isn't saved ("geoefende tafels").
         saveUrl: String,
         sumLabel: String,
         correct: String,
@@ -98,7 +99,7 @@ export default class extends Controller {
     start() {
         this.stopClock();
         this.cancelAutoOpen();
-        this.round = createRound(this.tableValue, Math.random, this.timeLimitValue);
+        this.round = createRound(this.tablesValue, Math.random, this.timeLimitValue);
         this.activeBubble = null;
         this.timerTarget.classList.remove('round-timer--expired');
         this.renderClock();

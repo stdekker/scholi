@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Game;
 
 use App\Entity\TafelsResult;
-use App\Game\Tafels;
+use App\Game\TafelsMix;
 use App\Player\GuestProgress;
 use App\Tests\Support\PlayerTestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -47,29 +47,43 @@ final class TafelsResultTest extends WebTestCase
     }
 
     /**
-     * @return iterable<string, array{int, bool}>
+     * @return iterable<string, array{TafelsMix, int, bool}>
      */
-    public static function alleTafelsDurations(): iterable
+    public static function mixDurations(): iterable
     {
-        yield 'within two minutes' => [110_000, true];
-        yield 'exactly two minutes' => [120_000, true];
-        yield 'too slow' => [125_000, false];
+        foreach (TafelsMix::cases() as $mix) {
+            yield $mix->slug().' within two minutes' => [$mix, 90_000, true];
+            yield $mix->slug().' exactly two minutes' => [$mix, 120_000, true];
+            yield $mix->slug().' too slow' => [$mix, 125_000, false];
+        }
     }
 
-    #[DataProvider('alleTafelsDurations')]
-    public function testAlleTafelsResultGetsTwoMinutes(int $durationMs, bool $passed): void
+    #[DataProvider('mixDurations')]
+    public function testMixResultGetsTwoMinutes(TafelsMix $mix, int $durationMs, bool $passed): void
     {
         $client = static::createClient();
         [$player, $token] = $this->createPlayer();
         $this->logIn($client, $token);
 
-        $this->postJson($client, '/rekenen/alle-tafels/resultaat', ['durationMs' => $durationMs]);
+        $this->postJson($client, '/rekenen/alle-tafels/'.$mix->slug().'/resultaat', ['durationMs' => $durationMs]);
 
         self::assertResponseStatusCodeSame(201);
+        self::assertSame(['passed' => $passed], json_decode((string) $client->getResponse()->getContent(), true));
         $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player]);
         self::assertCount(1, $results);
-        self::assertSame(Tafels::ALL, $results[0]->getTableNumber());
+        self::assertSame($mix->value, $results[0]->getTableNumber());
         self::assertSame($passed, $results[0]->isPassed());
+    }
+
+    public function testPractisedTablesAreNeverSaved(): void
+    {
+        $client = static::createClient();
+        [, $token] = $this->createPlayer();
+        $this->logIn($client, $token);
+
+        $this->postJson($client, '/rekenen/alle-tafels/geoefend/resultaat', ['durationMs' => 90_000]);
+
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testGuestResultIsKeptInASignedCookie(): void
@@ -97,11 +111,11 @@ final class TafelsResultTest extends WebTestCase
 
         $this->postJson($client, '/rekenen/tafel/6/resultaat', ['durationMs' => 70_000]);
         self::assertJsonStringEqualsJsonString('{"passed":false}', (string) $client->getResponse()->getContent());
-        $this->postJson($client, '/rekenen/alle-tafels/resultaat', ['durationMs' => 110_000]);
+        $this->postJson($client, '/rekenen/alle-tafels/2-tot-10/resultaat', ['durationMs' => 110_000]);
         $this->postJson($client, '/rekenen/tafel/3/resultaat', ['durationMs' => 40_000]);
         $this->postJson($client, '/rekenen/tafel/3/resultaat', ['durationMs' => 30_000]);
 
-        self::assertSame([Tafels::ALL => 110_000, 3 => 30_000, 6 => 50_000], $this->bestTimes((string) $this->responseGuestCookie($client)?->getValue()));
+        self::assertSame([TafelsMix::TwoToTen->value => 110_000, 3 => 30_000, 6 => 50_000], $this->bestTimes((string) $this->responseGuestCookie($client)?->getValue()));
     }
 
     public function testTamperedGuestCookieIsReplaced(): void
@@ -132,14 +146,18 @@ final class TafelsResultTest extends WebTestCase
         $client = static::createClient();
         $this->setGuestProgress($client, (new GuestProgress())
             ->withResult(6, 48_200, new \DateTimeImmutable())
-            ->withResult(Tafels::ALL, 125_000, new \DateTimeImmutable()));
+            ->withResult(TafelsMix::TwoToTen->value, 125_000, new \DateTimeImmutable()));
 
         $client->request('GET', '/rekenen');
 
-        self::assertSelectorTextContains('.table-picker li:nth-child(5) .progress-badge--passed', '0:49');
-        self::assertSelectorTextContains('.table-picker__item--all .progress-badge--done', '2:05');
-        self::assertSelectorCount(2, '.progress-badge');
+        self::assertSelectorTextContains('.table-picker li:nth-child(6) .progress-badge--passed', '0:49');
+        self::assertSelectorCount(1, '.progress-badge');
         self::assertNull($this->responseGuestCookie($client), 'A valid cookie is left alone');
+
+        $client->request('GET', '/rekenen/alle-tafels');
+
+        self::assertSelectorTextContains('.table-picker li:nth-child(2) .progress-badge--done', '2:05');
+        self::assertSelectorCount(1, '.progress-badge');
     }
 
     public function testGuestPickerIgnoresAndClearsATamperedCookie(): void
@@ -213,7 +231,7 @@ final class TafelsResultTest extends WebTestCase
         [, $token] = $this->createPlayer();
         $this->logIn($client, $token);
 
-        $this->postJson($client, '/rekenen/tafel/11/resultaat', ['durationMs' => 45_000]);
+        $this->postJson($client, '/rekenen/tafel/13/resultaat', ['durationMs' => 45_000]);
 
         self::assertResponseStatusCodeSame(404);
     }
@@ -228,33 +246,38 @@ final class TafelsResultTest extends WebTestCase
 
         $client->request('GET', '/rekenen');
 
-        self::assertSelectorTextContains('.table-picker li:nth-child(5) .progress-badge--passed', '0:49');
-        self::assertSelectorTextContains('.table-picker li:nth-child(6) .progress-badge--done', '1:15');
+        self::assertSelectorTextContains('.table-picker li:nth-child(6) .progress-badge--passed', '0:49');
+        self::assertSelectorTextContains('.table-picker li:nth-child(7) .progress-badge--done', '1:15');
         self::assertSelectorCount(2, '.progress-badge');
     }
 
-    public function testPickerShowsAlleTafelsBadge(): void
+    public function testMixPickerShowsABadgePerMix(): void
     {
         $client = static::createClient();
         [$player, $token] = $this->createPlayer();
-        $this->addResult($player, Tafels::ALL, 95_000);
+        $this->addResult($player, TafelsMix::TwoToFive->value, 95_000);
+        $this->addResult($player, TafelsMix::TwoToTwelve->value, 130_000);
         $this->logIn($client, $token);
 
         $client->request('GET', '/rekenen');
+        self::assertSelectorCount(0, '.progress-badge');
 
-        self::assertSelectorTextContains('.table-picker__item--all .progress-badge--passed', 'Binnen twee minuten! Beste tijd 1:35');
-        self::assertSelectorCount(1, '.progress-badge');
+        $client->request('GET', '/rekenen/alle-tafels');
+
+        self::assertSelectorTextContains('.table-picker li:nth-child(1) .progress-badge--passed', 'Binnen twee minuten! Beste tijd 1:35');
+        self::assertSelectorTextContains('.table-picker li:nth-child(3) .progress-badge--done', 'Gehaald. Beste tijd 2:10');
+        self::assertSelectorCount(2, '.progress-badge');
     }
 
-    public function testAlleTafelsGamePageKnowsWhereToSave(): void
+    public function testMixGamePageKnowsWhereToSave(): void
     {
         $client = static::createClient();
         [, $token] = $this->createPlayer();
         $this->logIn($client, $token);
 
-        $client->request('GET', '/rekenen/alle-tafels');
+        $client->request('GET', '/rekenen/alle-tafels/2-tot-5');
 
-        self::assertSelectorExists('[data-tafels-save-url-value="/rekenen/alle-tafels/resultaat"]');
+        self::assertSelectorExists('[data-tafels-save-url-value="/rekenen/alle-tafels/2-tot-5/resultaat"]');
     }
 
     public function testGamePageKnowsWhereToSave(): void

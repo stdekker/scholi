@@ -6,7 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Entity\Player;
 use App\Entity\TafelsResult;
-use App\Game\Tafels;
+use App\Game\TafelsMix;
 use App\Player\FunNameGenerator;
 use App\Player\GuestProgress;
 use App\Security\PlayerCookie;
@@ -68,7 +68,7 @@ final class PlayerControllerTest extends WebTestCase
         $this->setGuestProgress($client, (new GuestProgress())
             ->withResult(6, 48_200, $playedAt)
             ->withResult(7, 75_000, $playedAt)
-            ->withResult(Tafels::ALL, 110_000, $playedAt));
+            ->withResult(TafelsMix::TwoToTen->value, 110_000, $playedAt));
 
         $client->request('GET', '/speler/nieuw');
         self::assertSelectorTextContains('.notice--success', 'gaat mee naar je nieuwe speler');
@@ -83,7 +83,7 @@ final class PlayerControllerTest extends WebTestCase
         self::assertNotNull($player);
         $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player], ['tableNumber' => 'ASC']);
         self::assertSame(
-            [[Tafels::ALL, 110_000, true], [6, 48_200, true], [7, 75_000, false]],
+            [[TafelsMix::TwoToTen->value, 110_000, true], [6, 48_200, true], [7, 75_000, false]],
             array_map(static fn (TafelsResult $result): array => [$result->getTableNumber(), $result->getDurationMs(), $result->isPassed()], $results),
         );
         self::assertEquals($playedAt, $results[1]->getCompletedAt());
@@ -264,17 +264,20 @@ final class PlayerControllerTest extends WebTestCase
         $this->addResult($player, 6, 45_000);
         $this->addResult($player, 7, 90_000);
         $this->addResult($player, 7, 75_000);
-        $this->addResult($player, Tafels::ALL, 130_000);
+        $this->addResult($player, TafelsMix::TwoToTen->value, 130_000);
         $this->addResult($player, 9, 50_000);
         $this->logIn($client, $token);
 
         $client->request('GET', '/speler');
-        self::assertSelectorTextContains('.progress-list__item:nth-child(10)', 'Alle tafels');
-        self::assertSelectorTextContains('.progress-list__item:nth-child(10) .progress-badge--done', 'Beste tijd 2:10');
-        self::assertSelectorTextContains('.progress-list__item:nth-child(8) .progress-badge--passed', 'Binnen een minuut! Beste tijd 0:50');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(13)', 'Tafels 2 tot 5');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(14)', 'Tafels 2 tot 10');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(14) .progress-badge--done', 'Beste tijd 2:10');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(15)', 'Tafels 2 tot 12');
+        self::assertSelectorCount(15, '.progress-list__item');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(9) .progress-badge--passed', 'Binnen een minuut! Beste tijd 0:50');
 
-        self::assertSelectorTextContains('.progress-list__item:nth-child(5) .progress-badge--passed', 'Beste tijd 0:45');
-        self::assertSelectorTextContains('.progress-list__item:nth-child(6) .progress-badge--done', 'Beste tijd 1:15');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(6) .progress-badge--passed', 'Beste tijd 0:45');
+        self::assertSelectorTextContains('.progress-list__item:nth-child(7) .progress-badge--done', 'Beste tijd 1:15');
         self::assertSelectorTextContains('.progress-list__item:nth-child(1)', 'Nog niet geoefend');
     }
 

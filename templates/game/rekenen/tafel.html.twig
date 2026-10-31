@@ -1,7 +1,20 @@
 {% extends 'base.html.twig' %}
 
-{# One template for a single table (2–10) and for "alle tafels" (is_all). #}
-{% set title = is_all ? 'game.rekenen.tafels.all.title'|trans : 'game.rekenen.tafels.title'|trans({'%table%': table}) %}
+{#
+    One template for a single table (table, 1–12) and for "alle tafels": a fixed mix (mix) or the
+    practised tables (practised).
+#}
+{% set is_mix = table is null %}
+{% if practised %}
+    {% set title = 'game.rekenen.mixes.practised'|trans %}
+    {% set intro = 'game.rekenen.tafels.all.intro_practised'|trans %}
+{% elseif mix %}
+    {% set title = 'game.rekenen.mixes.range'|trans({'%last%': mix.lastTable}) %}
+    {% set intro = 'game.rekenen.tafels.all.intro'|trans({'%last%': mix.lastTable}) %}
+{% else %}
+    {% set title = 'game.rekenen.tafels.title'|trans({'%table%': table}) %}
+    {% set intro = 'game.rekenen.tafels.intro'|trans %}
+{% endif %}
 
 {% block title %}{{ title }} – {{ parent() }}{% endblock %}
 
@@ -13,7 +26,7 @@
 {% block body %}
     <section class="bubble-game"
         data-controller="tafels"
-        data-tafels-table-value="{{ table }}"
+        data-tafels-tables-value="{{ tables|json_encode }}"
         data-tafels-time-limit-value="{{ time_limit_ms }}"
         data-tafels-save-url-value="{{ save_url }}"
         data-tafels-sum-label-value="{{ 'game.rekenen.tafels.sum_label'|trans }}"
@@ -43,7 +56,7 @@
                 {{ 'game.rekenen.tafels.ready.button'|trans }}
             </button>
             <a class="action-button action-button--secondary action-button--small ready-dialog__back"
-                href="{{ path('app_game_rekenen') }}" data-tafels-target="readyBack">
+                href="{{ back_url }}" data-tafels-target="readyBack">
                 <span aria-hidden="true">←</span> {{ 'game.rekenen.tafels.ready.back'|trans }}
             </a>
             <p class="ready-dialog__countdown" role="status" data-tafels-target="countdown"></p>
@@ -51,7 +64,7 @@
 
         <header class="bubble-game__header">
             <h1>{{ title }}</h1>
-            <p>{{ (is_all ? 'game.rekenen.tafels.all.intro' : 'game.rekenen.tafels.intro')|trans }}</p>
+            <p>{{ intro }}</p>
             <div class="bubble-game__meta">
                 <p class="bubble-game__progress" data-tafels-target="progress"></p>
                 <div class="round-timer" data-tafels-target="timer">
@@ -97,8 +110,8 @@
         </div>
 
         <div class="round-complete" data-tafels-target="complete" hidden>
-            <p class="round-complete__message" data-tafels-target="passedMessage">{{ (is_all ? 'game.rekenen.tafels.all.done' : 'game.rekenen.tafels.done')|trans({'%table%': table}) }}</p>
-            <p class="round-complete__message" data-tafels-target="lateMessage" hidden>{{ 'game.rekenen.tafels.done_late'|trans({'%table%': table}) }}</p>
+            <p class="round-complete__message" data-tafels-target="passedMessage">{{ (is_mix ? 'game.rekenen.tafels.all.done' : 'game.rekenen.tafels.done')|trans({'%table%': table}) }}</p>
+            <p class="round-complete__message" data-tafels-target="lateMessage" hidden>{{ 'game.rekenen.tafels.done_late'|trans }}</p>
             <p class="round-complete__message" data-tafels-target="frozenMessage" hidden></p>
             {% if app.user %}
                 <p class="round-complete__note" data-tafels-target="savedMessage" hidden>{{ 'game.rekenen.tafels.saved'|trans }}</p>
@@ -114,8 +127,8 @@
                 <button type="button" class="action-button" data-action="tafels#restart" data-tafels-target="restart">
                     {{ 'game.rekenen.tafels.again'|trans }}
                 </button>
-                <a class="action-button action-button--secondary" href="{{ path('app_game_rekenen') }}">
-                    {{ 'game.rekenen.tafels.other_table'|trans }}
+                <a class="action-button action-button--secondary" href="{{ back_url }}">
+                    {{ (is_mix ? 'game.rekenen.tafels.other_mix' : 'game.rekenen.tafels.other_table')|trans }}
                 </a>
             </div>
         </div>

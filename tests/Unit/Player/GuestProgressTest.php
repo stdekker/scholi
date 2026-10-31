@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Player;
 
-use App\Game\Tafels;
+use App\Game\TafelsMix;
 use App\Player\GuestProgress;
 use PHPUnit\Framework\TestCase;
 
@@ -41,13 +41,13 @@ final class GuestProgressTest extends TestCase
         $progress = (new GuestProgress())
             ->withResult(6, 60_000, new \DateTimeImmutable())
             ->withResult(7, 60_001, new \DateTimeImmutable())
-            ->withResult(Tafels::ALL, 120_000, new \DateTimeImmutable())
+            ->withResult(TafelsMix::TwoToTen->value, 120_000, new \DateTimeImmutable())
             ->progress();
 
-        self::assertSame([Tafels::ALL, 6, 7], array_keys($progress));
+        self::assertSame([TafelsMix::TwoToTen->value, 6, 7], array_keys($progress));
         self::assertTrue($progress[6]->passed);
         self::assertFalse($progress[7]->passed);
-        self::assertTrue($progress[Tafels::ALL]->passed);
+        self::assertTrue($progress[TafelsMix::TwoToTen->value]->passed);
         self::assertSame('1:01', $progress[7]->bestTime());
     }
 }

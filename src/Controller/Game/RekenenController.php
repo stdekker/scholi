@@ -6,7 +6,9 @@ namespace App\Controller\Game;
 
 use App\Entity\Player;
 use App\Entity\TafelsResult;
+use App\Game\TableProgress;
 use App\Game\Tafels;
+use App\Game\TafelsMix;
 use App\Game\TafelsResultInput;
 use App\Player\GuestProgress;
 use App\Repository\TafelsResultRepository;
@@ -30,31 +32,75 @@ final class RekenenController extends AbstractController
     #[Route('/rekenen', name: 'app_game_rekenen', methods: ['GET'])]
     public function index(Request $request, TafelsResultRepository $results, #[CurrentUser] ?Player $player = null): Response
     {
-        $guestProgress = null === $player ? $this->guestCookie->read($request) : null;
+        [$progress, $invalidCookie] = $this->progress($request, $results, $player);
 
         $response = $this->render('game/rekenen/index.html.twig', [
             'tables' => Tafels::tables(),
-            'all_tables' => Tafels::ALL,
-            'progress' => null !== $player ? $results->progressFor($player) : ($guestProgress?->progress() ?? []),
+            'progress' => $progress,
         ]);
 
-        if (null === $player && null === $guestProgress) {
-            $response->headers->setCookie($this->guestCookie->clear($request));
-        }
-
-        return $response;
+        return $this->clearInvalidCookie($request, $response, $invalidCookie);
     }
 
     #[Route('/rekenen/tafel/{table}', name: 'app_game_rekenen_tafel', requirements: ['table' => Tafels::TABLE_PATTERN], methods: ['GET'])]
     public function tafel(int $table): Response
     {
-        return $this->renderGame($table, $this->generateUrl('app_game_rekenen_tafel_result', ['table' => $table]));
+        return $this->renderGame([
+            'table' => $table,
+            'tables' => [$table],
+            'time_limit_ms' => Tafels::timeLimitMs($table),
+            'save_url' => $this->generateUrl('app_game_rekenen_tafel_result', ['table' => $table]),
+            'back_url' => $this->generateUrl('app_game_rekenen'),
+        ]);
     }
 
+    /** Picks which tables an "alle tafels" round mixes. */
     #[Route('/rekenen/alle-tafels', name: 'app_game_rekenen_alle', methods: ['GET'])]
-    public function alleTafels(): Response
+    public function alleTafels(Request $request, TafelsResultRepository $results, #[CurrentUser] ?Player $player = null): Response
     {
-        return $this->renderGame(Tafels::ALL, $this->generateUrl('app_game_rekenen_alle_result'));
+        [$progress, $invalidCookie] = $this->progress($request, $results, $player);
+        $practised = Tafels::practisedTables($progress);
+
+        $response = $this->render('game/rekenen/alle_tafels.html.twig', [
+            'mixes' => TafelsMix::cases(),
+            'progress' => $progress,
+            'practised' => $practised,
+            'practised_open' => \count($practised) >= Tafels::MIN_PRACTISED_TABLES,
+        ]);
+
+        return $this->clearInvalidCookie($request, $response, $invalidCookie);
+    }
+
+    /** "Geoefende tafels": every table with a finished round. Never saved, its tables change. */
+    #[Route('/rekenen/alle-tafels/geoefend', name: 'app_game_rekenen_geoefend', methods: ['GET'])]
+    public function geoefend(Request $request, TafelsResultRepository $results, #[CurrentUser] ?Player $player = null): Response
+    {
+        $practised = Tafels::practisedTables($this->progress($request, $results, $player)[0]);
+        if (\count($practised) < Tafels::MIN_PRACTISED_TABLES) {
+            return $this->redirectToRoute('app_game_rekenen_alle');
+        }
+
+        return $this->renderGame([
+            'practised' => true,
+            'tables' => $practised,
+            'time_limit_ms' => Tafels::ALL_TIME_LIMIT_MS,
+            'save_url' => '',
+            'back_url' => $this->generateUrl('app_game_rekenen_alle'),
+        ]);
+    }
+
+    #[Route('/rekenen/alle-tafels/{mix}', name: 'app_game_rekenen_mix', requirements: ['mix' => TafelsMix::SLUG_PATTERN], methods: ['GET'])]
+    public function mix(string $mix): Response
+    {
+        $tafelsMix = $this->findMix($mix);
+
+        return $this->renderGame([
+            'mix' => $tafelsMix,
+            'tables' => $tafelsMix->tables(),
+            'time_limit_ms' => Tafels::timeLimitMs($tafelsMix->value),
+            'save_url' => $this->generateUrl('app_game_rekenen_mix_result', ['mix' => $mix]),
+            'back_url' => $this->generateUrl('app_game_rekenen_alle'),
+        ]);
     }
 
     /**
@@ -73,29 +119,60 @@ final class RekenenController extends AbstractController
         return $this->storeResult($request, $table, $input, $entityManager, $player);
     }
 
-    #[Route('/rekenen/alle-tafels/resultaat', name: 'app_game_rekenen_alle_result', methods: ['POST'], format: 'json')]
-    public function saveAlleTafelsResult(
+    #[Route('/rekenen/alle-tafels/{mix}/resultaat', name: 'app_game_rekenen_mix_result', requirements: ['mix' => TafelsMix::SLUG_PATTERN], methods: ['POST'], format: 'json')]
+    public function saveMixResult(
         Request $request,
+        string $mix,
         #[MapRequestPayload(acceptFormat: 'json')] TafelsResultInput $input,
         EntityManagerInterface $entityManager,
         #[CurrentUser] ?Player $player = null,
     ): JsonResponse {
-        return $this->storeResult($request, Tafels::ALL, $input, $entityManager, $player);
+        return $this->storeResult($request, $this->findMix($mix)->value, $input, $entityManager, $player);
+    }
+
+    private function findMix(string $slug): TafelsMix
+    {
+        return TafelsMix::fromSlug($slug) ?? throw $this->createNotFoundException();
     }
 
     /**
-     * @param int $table 2–10, or Tafels::ALL
+     * The best result per table and mix: from the database for a player, from the signed cookie
+     * for a guest (empty, and flagged for clearing, when that cookie is not valid).
+     *
+     * @return array{array<int, TableProgress>, bool} progress keyed by table number, and whether the guest cookie is invalid
      */
-    private function renderGame(int $table, string $saveUrl): Response
+    private function progress(Request $request, TafelsResultRepository $results, ?Player $player): array
     {
-        $timeLimitMs = Tafels::timeLimitMs($table);
+        if (null !== $player) {
+            return [$results->progressFor($player), false];
+        }
 
-        return $this->render('game/rekenen/tafel.html.twig', [
-            'table' => $table,
-            'is_all' => Tafels::ALL === $table,
-            'time_limit_ms' => $timeLimitMs,
-            'time_limit' => Tafels::formatTime($timeLimitMs),
-            'save_url' => $saveUrl,
+        $guestProgress = $this->guestCookie->read($request);
+
+        return [$guestProgress?->progress() ?? [], null === $guestProgress];
+    }
+
+    private function clearInvalidCookie(Request $request, Response $response, bool $invalidCookie): Response
+    {
+        if ($invalidCookie) {
+            $response->headers->setCookie($this->guestCookie->clear($request));
+        }
+
+        return $response;
+    }
+
+    /**
+     * Renders the bubble game: for a single table (table), a fixed mix (mix) or the practised tables.
+     *
+     * @param array{table?: int, mix?: TafelsMix, practised?: bool, tables: list<int>, time_limit_ms: int, save_url: string, back_url: string} $game
+     */
+    private function renderGame(array $game): Response
+    {
+        return $this->render('game/rekenen/tafel.html.twig', $game + [
+            'table' => null,
+            'mix' => null,
+            'practised' => false,
+            'time_limit' => Tafels::formatTime($game['time_limit_ms']),
         ]);
     }
 
