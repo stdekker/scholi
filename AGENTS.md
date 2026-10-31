@@ -132,7 +132,7 @@ Each game only decides **which sums** a round asks and its texts. Everything els
     - For a player, they go in `PracticeDay` (one row per player and day). Each write deletes that player's rows from before the window.
     - For a guest, they go in the cookie under `"p":{"<Y-m-d>":seconds}`, also only for the window.
   - **Showing:** the endpoint answers `{minutes}`. The completion panel shows "Deze week heb je al … geoefend!" once it is at least 1 minute, and the player page shows the same total.
-- **Header:** for a player, the blue header shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. Guests see "Voortgang bewaren" instead.
+- **Header:** for a player, the blue header shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. On phones (up to 40rem) the name is visually hidden and only the emoji shows (👤 without one). Guests see "Voortgang bewaren" instead.
 
 ### Rekenen › Tafels
 

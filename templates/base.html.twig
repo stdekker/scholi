@@ -19,7 +19,14 @@
             {% if app.user %}
                 {% set stats = player_stats(app.user) %}
                 <a class="site-header__player" href="{{ path('app_player') }}">
-                    <span class="site-header__name">{% if app.user.emoji is null %}<span aria-hidden="true">👤</span> {% endif %}{{ app.user.displayName }}</span>
+                    {# On phones only the emoji shows (or 👤 for players from before emoji); the name is visually hidden. #}
+                    <span class="site-header__name">
+                        {%- if app.user.emoji is null -%}
+                            <span class="site-header__icon" aria-hidden="true">👤</span> <span class="site-header__label">{{ app.user.name }}</span>
+                        {%- else -%}
+                            <span class="site-header__label">{{ app.user.name }}</span> <span class="site-header__icon">{{ app.user.emoji }}</span>
+                        {%- endif -%}
+                    </span>
                     {# Badges (⭐ and ✓ over all games) and minutes practised in the last seven days. #}
                     <span class="site-header__stats" aria-hidden="true">
                         <span>⭐ {{ stats.badges }}</span>

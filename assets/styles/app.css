@@ -77,7 +77,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-1) var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
     background-color: var(--color-primary);
 }
 
@@ -94,10 +94,13 @@ body {
     text-decoration: none;
 }
 
-/* Badges and minutes after the name, set apart by a thin line; may wrap below it on phones. */
+/* The stats sit after the name, set apart by a thin line. */
 .site-header__player {
-    flex-wrap: wrap;
-    column-gap: var(--space-2);
+    gap: var(--space-2);
+}
+
+.site-header__name {
+    overflow-wrap: anywhere;
 }
 
 .site-header__stats {
@@ -106,6 +109,42 @@ body {
     padding-inline-start: var(--space-2);
     border-inline-start: 2px solid var(--color-primary-contrast);
     white-space: nowrap;
+}
+
+/* Phones: only the player's emoji; the name stays for screen readers. */
+@media (max-width: 40rem) {
+    .site-header__label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .site-header__icon {
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+
+    /* Smaller brand and button, so both fit on one line. */
+    .site-header__brand {
+        font-size: 1.5rem;
+    }
+
+    .site-header__player,
+    .site-header__stats {
+        gap: var(--space-1);
+    }
+
+    .site-header__player {
+        padding-inline: var(--space-1);
+        font-size: 1rem;
+    }
+
+    .site-header__stats {
+        padding-inline-start: var(--space-1);
+    }
 }
 
 .site-footer {
@@ -175,7 +214,29 @@ body {
     width: 100%;
     max-width: 60rem;
     margin-inline: auto;
-    padding: var(--space-4) var(--space-3);
+    padding: var(--space-3) var(--space-2);
+}
+
+/* Page title (subject or game name): smaller on phones so it fits next to the content. */
+h1 {
+    margin-block: 0 var(--space-2);
+    font-size: 1.75rem;
+    line-height: 1.2;
+}
+
+@media (min-width: 40rem) {
+    .site-header {
+        padding-inline: var(--space-3);
+    }
+
+    .site-main {
+        padding: var(--space-4) var(--space-3);
+    }
+
+    h1 {
+        margin-block-end: var(--space-3);
+        font-size: 2.5rem;
+    }
 }
 
 /* Game overview (homepage, /rekenen) */
@@ -183,7 +244,7 @@ body {
 .game-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-    gap: var(--space-3);
+    gap: var(--space-2);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -194,7 +255,7 @@ body {
     flex-direction: column;
     gap: var(--space-1);
     min-height: var(--touch-target);
-    padding: var(--space-3);
+    padding: var(--space-2);
     border: 3px solid var(--color-border);
     border-radius: var(--radius);
     background-color: var(--color-surface);
@@ -207,8 +268,22 @@ body {
 }
 
 .game-card__title {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 700;
+}
+
+@media (min-width: 40rem) {
+    .game-list {
+        gap: var(--space-3);
+    }
+
+    .game-card {
+        padding: var(--space-3);
+    }
+
+    .game-card__title {
+        font-size: 1.5rem;
+    }
 }
 
 /* Shared buttons */
