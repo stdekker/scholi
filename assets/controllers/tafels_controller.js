@@ -28,11 +28,14 @@ const CLOCK_TICK_MS = 200;
 const GO_VISIBLE_MS = 800;
 // Delay between bubbles popping up one after another.
 const APPEAR_STAGGER_MS = 40;
+// Opens a bubble by itself when none has been opened for this long.
+const AUTO_OPEN_DELAY_MS = 3000;
 
 /*
  * Tafels bubbles: one bubble per sum; click a bubble, type the answer, pop it.
  * Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1 countdown; then the
  * one-minute clock starts. When it runs out the pupil can still finish.
+ * If no bubble is open for AUTO_OPEN_DELAY_MS, the focused (or else first) bubble opens.
  * DOM wiring only — the game rules live in assets/games/rekenen/tafels.js.
  *
  * Translated texts arrive as values with %placeholders%, filled in with format().
@@ -94,6 +97,7 @@ export default class extends Controller {
 
     start() {
         this.stopClock();
+        this.cancelAutoOpen();
         this.round = createRound(this.tableValue, Math.random, this.timeLimitValue);
         this.activeBubble = null;
         this.timerTarget.classList.remove('round-timer--expired');
@@ -143,6 +147,7 @@ export default class extends Controller {
             this.revealBubbles();
             this.startClock();
             this.fieldTarget.querySelector('.bubble__sum')?.focus();
+            this.scheduleAutoOpen();
         });
     }
 
@@ -181,6 +186,30 @@ export default class extends Controller {
             callback();
         }, delay);
         this.timers.add(timer);
+    }
+
+    /** (Re)starts the idle wait after which a bubble opens by itself. */
+    scheduleAutoOpen() {
+        this.cancelAutoOpen();
+        if (!this.readyDone || this.activeBubble || isRoundComplete(this.round)) {
+            return;
+        }
+
+        this.autoOpenTimer = setTimeout(() => {
+            this.timers.delete(this.autoOpenTimer);
+            this.autoOpenTimer = null;
+            const bubble = this.activeBubble ? null : this.bubbleToActivate();
+            if (bubble) {
+                this.activate(bubble);
+            }
+        }, AUTO_OPEN_DELAY_MS);
+        this.timers.add(this.autoOpenTimer);
+    }
+
+    cancelAutoOpen() {
+        clearTimeout(this.autoOpenTimer);
+        this.timers.delete(this.autoOpenTimer);
+        this.autoOpenTimer = null;
     }
 
     revealBubbles() {
@@ -228,6 +257,7 @@ export default class extends Controller {
         }
 
         this.close();
+        this.cancelAutoOpen();
         this.activeBubble = bubble;
         bubble.classList.add('bubble--active');
         bubble.querySelector('.bubble__sum').setAttribute('aria-expanded', 'true');
@@ -252,6 +282,7 @@ export default class extends Controller {
         this.answerInput().hidden = true;
         this.activeBubble = null;
         this.keypadTarget.hidden = true;
+        this.scheduleAutoOpen();
     }
 
     press({ params: { digit } }) {
@@ -436,6 +467,7 @@ export default class extends Controller {
 
     finish() {
         this.stopClock();
+        this.cancelAutoOpen();
         this.renderClock();
 
         const passed = isPassed(this.round);
