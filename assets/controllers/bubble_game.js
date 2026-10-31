@@ -31,6 +31,9 @@ const GO_VISIBLE_MS = 800;
 const APPEAR_STAGGER_MS = 40;
 // Opens a bubble by itself when none has been opened for this long.
 const AUTO_OPEN_DELAY_MS = 3000;
+// Confetti of a popped bubble: number of pieces, and when they are removed (after the animation).
+const CONFETTI_PIECES = 32;
+const CONFETTI_MS = 700;
 
 /*
  * Base class of the bubble games (tafels, erbij en eraf): one bubble per sum; click a bubble,
@@ -443,12 +446,48 @@ export default class BubbleGameController extends Controller {
         this.close();
         bubble.classList.add('bubble--popping');
         bubble.querySelector('.bubble__sum').disabled = true;
+        this.burst(bubble);
         this.updateProgress();
         this.openNext(bubble);
 
         const timer = setTimeout(() => this.removeBubble(bubble), POP_FALLBACK_MS);
         this.timers.add(timer);
         bubble.dataset.popTimer = String(timer);
+    }
+
+    /**
+     * A correctly answered bubble explodes into confetti in its own colour. Decoration only
+     * (aria-hidden), and skipped under prefers-reduced-motion.
+     *
+     * @param {HTMLElement} bubble
+     */
+    burst(bubble) {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
+
+        const { left, top, width, height } = bubble.getBoundingClientRect();
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.setAttribute('aria-hidden', 'true');
+        confetti.style.left = `${left + width / 2}px`;
+        confetti.style.top = `${top + height / 2}px`;
+        confetti.style.setProperty('--bubble-hue', bubble.style.getPropertyValue('--bubble-hue'));
+
+        for (let i = 0; i < CONFETTI_PIECES; i++) {
+            const piece = document.createElement('span');
+            const angle = ((i + Math.random() * 0.5) / CONFETTI_PIECES) * 2 * Math.PI;
+            const distance = width * (0.8 + Math.random() * 0.9);
+            piece.className = 'confetti__piece';
+            piece.style.setProperty('--x', `${(Math.cos(angle) * distance).toFixed(1)}px`);
+            piece.style.setProperty('--y', `${(Math.sin(angle) * distance).toFixed(1)}px`);
+            piece.style.setProperty('--turn', `${Math.round(Math.random() * 720 - 360)}deg`);
+            piece.style.setProperty('--lightness', `${45 + Math.round(Math.random() * 30)}%`);
+            confetti.append(piece);
+        }
+
+        this.element.append(confetti);
+        this.schedule(CONFETTI_MS, () => confetti.remove());
     }
 
     /** Third wrong answer: the bubble shrinks, turns grey and can't be answered any more. */
