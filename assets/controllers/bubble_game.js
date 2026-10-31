@@ -36,7 +36,8 @@ const AUTO_OPEN_DELAY_MS = 3000;
  * Base class of the bubble games (tafels, erbij en eraf): one bubble per sum; click a bubble,
  * type the answer, pop it. Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1
  * countdown; then the clock starts. When it runs out the pupil can still finish.
- * If no bubble is open for AUTO_OPEN_DELAY_MS, the focused (or else first) bubble opens.
+ * The next sum opens by itself (after "Start!", a pop or a freeze); the pupil may tap another one
+ * instead. If no bubble is open for AUTO_OPEN_DELAY_MS (e.g. after Escape), one opens as well.
  * A click on a menu link (the site header) during a round pauses it and asks: stop or continue?
  *
  * Not a controller itself (the file name has no _controller suffix): a game's controller
@@ -172,8 +173,7 @@ export default class BubbleGameController extends Controller {
             this.readyDialogTarget.close();
             this.revealBubbles();
             this.startClock();
-            this.fieldTarget.querySelector('.bubble__sum')?.focus();
-            this.scheduleAutoOpen();
+            this.openNext(null);
         });
     }
 
@@ -277,7 +277,11 @@ export default class BubbleGameController extends Controller {
         this.activate(event.currentTarget.closest('.bubble'));
     }
 
-    activate(bubble) {
+    /**
+     * @param {HTMLElement} bubble
+     * @param {{keepStatus?: boolean}} options keepStatus: leave the feedback ("Goed zo!") in place
+     */
+    activate(bubble, { keepStatus = false } = {}) {
         if (
             bubble === this.activeBubble ||
             bubble.classList.contains('bubble--popping') ||
@@ -297,7 +301,9 @@ export default class BubbleGameController extends Controller {
         input.value = '';
         input.hidden = false;
         this.keypadTarget.hidden = false;
-        this.statusTarget.textContent = '';
+        if (!keepStatus) {
+            this.statusTarget.textContent = '';
+        }
         input.focus({ preventScroll: true });
         // scroll-margin on .bubble--active keeps the bubble clear of the sticky keypad dock.
         bubble.scrollIntoView({ block: 'nearest' });
@@ -438,7 +444,7 @@ export default class BubbleGameController extends Controller {
         bubble.classList.add('bubble--popping');
         bubble.querySelector('.bubble__sum').disabled = true;
         this.updateProgress();
-        this.focusNext(bubble);
+        this.openNext(bubble);
 
         const timer = setTimeout(() => this.removeBubble(bubble), POP_FALLBACK_MS);
         this.timers.add(timer);
@@ -457,7 +463,7 @@ export default class BubbleGameController extends Controller {
             format(this.frozenLabelValue, { label: this.sumLabel(task) }),
         );
         this.updateProgress();
-        this.focusNext(bubble);
+        this.openNext(bubble);
     }
 
     animationEnded(event, bubble) {
@@ -481,19 +487,29 @@ export default class BubbleGameController extends Controller {
         bubble.remove();
     }
 
-    focusNext(poppedBubble) {
+    /**
+     * Opens the next remaining bubble after `previous` (the one just popped or frozen, or null for
+     * the first), wrapping around; finishes the round when none is left.
+     *
+     * @param {HTMLElement | null} previous
+     */
+    openNext(previous) {
         if (isRoundComplete(this.round)) {
             this.finish();
             return;
         }
 
-        const next = [...this.fieldTarget.children].find(
+        const bubbles = [...this.fieldTarget.children];
+        const start = previous ? bubbles.indexOf(previous) + 1 : 0;
+        const next = [...bubbles.slice(start), ...bubbles.slice(0, start)].find(
             (bubble) =>
-                bubble !== poppedBubble &&
+                bubble !== previous &&
                 !bubble.classList.contains('bubble--popping') &&
                 !bubble.classList.contains('bubble--frozen'),
         );
-        next?.querySelector('.bubble__sum').focus();
+        if (next) {
+            this.activate(next, { keepStatus: true });
+        }
     }
 
     finish() {
