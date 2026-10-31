@@ -9,9 +9,11 @@ import {
     isRoundComplete,
     isTimeUp,
     MAX_ATTEMPTS,
+    pauseRound,
     practiceSeconds,
     registerWrongAnswer,
     remainingTasks,
+    resumeRound,
     roundDuration,
     solveTask,
     startTimer,
@@ -265,5 +267,44 @@ describe('practiceSeconds', () => {
 
         expect(isPassed(round)).toBe(false);
         expect(practiceSeconds(round)).toBe(30);
+    });
+});
+
+describe('pausing', () => {
+    it('stops the clock while paused and continues where it was', () => {
+        const paused = pauseRound(startTimer(roundOf(2), 1_000), 11_000);
+
+        expect(timeLeft(paused, 40_000)).toBe(50_000);
+
+        const resumed = resumeRound(paused, 40_000);
+        expect(resumed.pausedAt).toBeNull();
+        expect(timeLeft(resumed, 45_000)).toBe(45_000);
+    });
+
+    it('leaves the paused time out of the duration, the verdict and the practice time', () => {
+        let round = startTimer(roundOf(1), 0);
+        round = resumeRound(pauseRound(round, 50_000), 110_000);
+        round = solveTask(round, 1, 115_000);
+
+        expect(roundDuration(round)).toBe(55_000);
+        expect(isPassed(round)).toBe(true);
+        expect(practiceSeconds(round)).toBe(55);
+    });
+
+    it('does nothing before the clock starts, after the round or when already paused', () => {
+        const notStarted = roundOf(1);
+        expect(pauseRound(notStarted, 5_000)).toBe(notStarted);
+
+        const finished = solveTask(startTimer(roundOf(1), 0), 1, 10_000);
+        expect(pauseRound(finished, 20_000)).toBe(finished);
+
+        const paused = pauseRound(startTimer(roundOf(1), 0), 10_000);
+        expect(pauseRound(paused, 20_000)).toBe(paused);
+    });
+
+    it('resuming a running round changes nothing', () => {
+        const running = startTimer(roundOf(1), 0);
+
+        expect(resumeRound(running, 5_000)).toBe(running);
     });
 });

@@ -7,6 +7,7 @@
  *
  * Timer: the round's clock starts after a READY_COUNTDOWN_SECONDS countdown. The pupil passes
  * when all sums are solved (none frozen) within the time limit; after that they may still finish.
+ * The round can be paused (e.g. while asking whether to stop): paused time doesn't count.
  *
  * Pure ES module: no DOM access, no bare (importmap) imports, time injected.
  * The DOM wiring lives in assets/controllers/bubble_game.js; each game only supplies the sums.
@@ -43,6 +44,7 @@ export const READY_COUNTDOWN_SECONDS = 3;
  * @property {number} timeLimitMs
  * @property {number | null} startedAt timestamp (ms) the clock started, null before that
  * @property {number | null} finishedAt timestamp (ms) the last task was solved or frozen
+ * @property {number | null} pausedAt timestamp (ms) the round was paused, null while running
  */
 
 /**
@@ -90,6 +92,7 @@ export function createRound(sums, timeLimitMs) {
         timeLimitMs,
         startedAt: null,
         finishedAt: null,
+        pausedAt: null,
     };
 }
 
@@ -195,7 +198,40 @@ export function startTimer(round, now) {
 }
 
 /**
- * Milliseconds left on the clock (never negative). Stops counting once the round is finished.
+ * Pauses a running round: the clock stands still until resumeRound(). Does nothing before the
+ * clock starts, after the round is finished or when it is already paused.
+ *
+ * @param {Round} round
+ * @param {number} now current timestamp in ms
+ * @returns {Round}
+ */
+export function pauseRound(round, now) {
+    if (round.startedAt === null || round.finishedAt !== null || round.pausedAt !== null) {
+        return round;
+    }
+
+    return { ...round, pausedAt: now };
+}
+
+/**
+ * Resumes a paused round. The clock's start moves forward by the paused time, so the pause
+ * counts neither for the time limit nor for the round's duration.
+ *
+ * @param {Round} round
+ * @param {number} now current timestamp in ms
+ * @returns {Round}
+ */
+export function resumeRound(round, now) {
+    if (round.pausedAt === null || round.startedAt === null) {
+        return round;
+    }
+
+    return { ...round, startedAt: round.startedAt + (now - round.pausedAt), pausedAt: null };
+}
+
+/**
+ * Milliseconds left on the clock (never negative). Stops counting while paused and once the
+ * round is finished.
  *
  * @param {Round} round
  * @param {number} now current timestamp in ms
@@ -206,7 +242,7 @@ export function timeLeft(round, now) {
         return round.timeLimitMs;
     }
 
-    const elapsed = (round.finishedAt ?? now) - round.startedAt;
+    const elapsed = (round.finishedAt ?? round.pausedAt ?? now) - round.startedAt;
 
     return Math.max(0, round.timeLimitMs - elapsed);
 }

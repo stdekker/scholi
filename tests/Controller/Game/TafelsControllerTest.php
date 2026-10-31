@@ -42,6 +42,10 @@ final class TafelsControllerTest extends WebTestCase
         self::assertSelectorTextSame('dialog.ready-dialog h2', 'Ben je er klaar voor?');
         self::assertSelectorTextContains('dialog.ready-dialog button', 'Ik ben er klaar voor!');
         self::assertSelectorTextContains('dialog.ready-dialog a.ready-dialog__back[href="/rekenen/tafels"]', 'Terug');
+        self::assertSelectorExists('[data-action~="click@document->tafels#confirmLeave"]');
+        self::assertSelectorTextSame('dialog.pause-dialog h2', 'Wil je stoppen?');
+        self::assertSelectorTextContains('dialog.pause-dialog [data-action="tafels#continue"]', 'Verder spelen');
+        self::assertSelectorTextContains('dialog.pause-dialog [data-action="tafels#stop"]', 'Stoppen');
         self::assertSelectorTextContains('[data-tafels-target="lateMessage"]', 'Iets sneller de volgende keer!');
         self::assertSelectorExists('[data-tafels-target="frozenMessage"][hidden]');
         self::assertSelectorExists('[data-tafels-frozen-value="Oei, deze som is bevroren. Ga verder met een andere!"]');

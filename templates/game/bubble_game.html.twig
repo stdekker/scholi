@@ -37,7 +37,7 @@
         data-{{ c }}-remaining-value="{{ 'game.bubbles.remaining'|trans }}"
         data-{{ c }}-time-up-value="{{ 'game.bubbles.timer.up'|trans }}"
         data-{{ c }}-go-value="{{ 'game.bubbles.ready.go'|trans }}"
-        data-action="keydown@window->{{ c }}#typeAnywhere"
+        data-action="keydown@window->{{ c }}#typeAnywhere click@document->{{ c }}#confirmLeave"
     >
         {# Shown before every round; the clock starts after the 3-2-1 countdown. #}
         <dialog class="ready-dialog" aria-labelledby="ready-dialog-title" closedby="none"
@@ -58,6 +58,22 @@
                 <span aria-hidden="true">←</span> {{ 'game.bubbles.ready.back'|trans }}
             </a>
             <p class="ready-dialog__countdown" role="status" data-{{ c }}-target="countdown"></p>
+        </dialog>
+
+        {# Opens when a menu link is clicked during a round; the clock stands still meanwhile. #}
+        <dialog class="ready-dialog pause-dialog" aria-labelledby="pause-dialog-title"
+            data-{{ c }}-target="pauseDialog" data-action="close->{{ c }}#resume">
+            <h2 class="ready-dialog__title" id="pause-dialog-title">{{ 'game.bubbles.pause.title'|trans }}</h2>
+            <p>{{ 'game.bubbles.pause.text'|trans }}</p>
+            <div class="pause-dialog__actions">
+                <button type="button" class="action-button"
+                    data-{{ c }}-target="continueButton" data-action="{{ c }}#continue">
+                    {{ 'game.bubbles.pause.continue'|trans }}
+                </button>
+                <button type="button" class="action-button action-button--secondary" data-action="{{ c }}#stop">
+                    {{ 'game.bubbles.pause.stop'|trans }}
+                </button>
+            </div>
         </dialog>
 
         <header class="bubble-game__header">

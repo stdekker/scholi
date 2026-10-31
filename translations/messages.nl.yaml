@@ -44,6 +44,11 @@ game:
             button: Ik ben er klaar voor!
             go: Start!
             back: Terug
+        pause:
+            title: Wil je stoppen?
+            text: Het spel staat even stil. Als je stopt, telt deze ronde niet.
+            continue: Verder spelen
+            stop: Stoppen
         timer:
             label: Tijd
             up: De tijd is om! Maak de sommen rustig af.

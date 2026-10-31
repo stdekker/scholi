@@ -9,9 +9,11 @@ import {
     isPassed,
     isRoundComplete,
     isTimeUp,
+    pauseRound,
     practiceSeconds,
     READY_COUNTDOWN_SECONDS,
     remainingTasks,
+    resumeRound,
     registerWrongAnswer,
     roundDuration,
     solveTask,
@@ -35,6 +37,7 @@ const AUTO_OPEN_DELAY_MS = 3000;
  * type the answer, pop it. Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1
  * countdown; then the clock starts. When it runs out the pupil can still finish.
  * If no bubble is open for AUTO_OPEN_DELAY_MS, the focused (or else first) bubble opens.
+ * A click on a menu link (the site header) during a round pauses it and asks: stop or continue?
  *
  * Not a controller itself (the file name has no _controller suffix): a game's controller
  * extends it and implements createSums(). Stimulus merges the subclass's static values.
@@ -65,6 +68,8 @@ export default class BubbleGameController extends Controller {
         'savedMessage',
         'saveFailedMessage',
         'practiceMessage',
+        'pauseDialog',
+        'continueButton',
     ];
 
     static values = {
@@ -96,6 +101,7 @@ export default class BubbleGameController extends Controller {
 
     connect() {
         this.timers = new Set();
+        this.leaving = false;
         this.start();
     }
 
@@ -342,6 +348,7 @@ export default class BubbleGameController extends Controller {
             event.metaKey ||
             event.altKey ||
             this.readyDialogTarget.open ||
+            this.pauseDialogTarget.open ||
             event.target.classList?.contains('bubble__answer')
         ) {
             return;
@@ -600,7 +607,85 @@ export default class BubbleGameController extends Controller {
         }
 
         this.round = startTimer(this.round, Date.now());
+        this.runClock();
+    }
+
+    runClock() {
+        this.stopClock();
         this.clock = setInterval(() => this.tick(), CLOCK_TICK_MS);
+    }
+
+    /** Whether a round is being played: after "Start!" and before the last bubble. */
+    isPlaying() {
+        return this.readyDone && this.round.startedAt !== null && !isRoundComplete(this.round);
+    }
+
+    /**
+     * A click on a menu link (in the site header) during a round: don't leave yet, but pause and
+     * ask whether to stop or continue. Opening the link in a new tab is left alone.
+     */
+    confirmLeave(event) {
+        const link = event.target.closest?.('.site-header a[href]');
+        if (
+            !link ||
+            this.leaving ||
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            event.altKey ||
+            !this.isPlaying()
+        ) {
+            return;
+        }
+
+        // Runs on document, before Turbo's click handler on window, which then skips the link.
+        event.preventDefault();
+        this.pendingLink = link;
+        this.round = pauseRound(this.round, Date.now());
+        this.stopClock();
+        this.cancelAutoOpen();
+        this.element.classList.add('bubble-game--paused');
+        this.renderClock();
+        this.pauseDialogTarget.showModal();
+        this.continueButtonTarget.focus();
+    }
+
+    /** "Verder spelen": closing the dialog resumes the round (see resume). */
+    continue() {
+        this.pauseDialogTarget.close();
+    }
+
+    /** "Stoppen": follow the menu link after all. The unfinished round doesn't count. */
+    stop() {
+        const link = this.pendingLink;
+        this.leaving = true;
+        this.pauseDialogTarget.close();
+        link?.click();
+    }
+
+    /** The pause dialog closed ("Verder spelen" or Escape): the clock runs on. */
+    resume() {
+        this.pendingLink = null;
+        if (this.leaving) {
+            return;
+        }
+
+        const now = Date.now();
+        this.round = resumeRound(this.round, now);
+        this.element.classList.remove('bubble-game--paused');
+        this.renderClock(now);
+        if (!isTimeUp(this.round, now)) {
+            this.runClock();
+        }
+
+        if (this.activeBubble) {
+            this.answerInput().focus();
+        } else {
+            this.bubbleToActivate()?.querySelector('.bubble__sum').focus();
+            this.scheduleAutoOpen();
+        }
     }
 
     stopClock() {
