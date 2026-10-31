@@ -17,8 +17,15 @@
         <header class="site-header">
             <a class="site-header__brand" href="{{ path('app_home') }}">{{ 'app.name'|trans }}</a>
             {% if app.user %}
+                {% set stats = player_stats(app.user) %}
                 <a class="site-header__player" href="{{ path('app_player') }}">
-                    {% if app.user.emoji is null %}<span aria-hidden="true">👤</span>{% endif %} {{ app.user.displayName }}
+                    <span class="site-header__name">{% if app.user.emoji is null %}<span aria-hidden="true">👤</span> {% endif %}{{ app.user.displayName }}</span>
+                    {# Badges (⭐ and ✓ over all games) and minutes practised in the last seven days. #}
+                    <span class="site-header__stats" aria-hidden="true">
+                        <span>⭐ {{ stats.badges }}</span>
+                        <span>⏱️ {{ 'player.header.minutes'|trans({'%minutes%': stats.minutes}) }}</span>
+                    </span>
+                    <span class="visually-hidden">{{ 'player.header.stats'|trans({'%badges%': stats.badges, '%minutes%': stats.minutes}) }}</span>
                 </a>
             {% else %}
                 <a class="site-header__player" href="{{ path('app_player_new') }}">{{ 'player.header.save_progress'|trans }}</a>

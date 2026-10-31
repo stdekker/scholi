@@ -24,6 +24,9 @@
         {%- endfor %}
         data-{{ c }}-time-limit-value="{{ time_limit_ms }}"
         data-{{ c }}-save-url-value="{{ save_url }}"
+        data-{{ c }}-practice-url-value="{{ path('app_practice') }}"
+        data-{{ c }}-practice-one-value="{{ 'game.bubbles.practice.one'|trans }}"
+        data-{{ c }}-practice-many-value="{{ 'game.bubbles.practice.many'|trans }}"
         data-{{ c }}-sum-labels-value="{{ {plus: 'game.bubbles.sum_label.plus'|trans, min: 'game.bubbles.sum_label.min'|trans, keer: 'game.bubbles.sum_label.keer'|trans}|json_encode }}"
         data-{{ c }}-correct-value="{{ 'game.bubbles.correct'|trans }}"
         data-{{ c }}-try-again-value="{{ 'game.bubbles.try_again'|trans }}"
@@ -117,6 +120,7 @@
                     <a href="{{ path('app_player_new') }}">{{ 'game.bubbles.guest_link'|trans }}</a>
                 </p>
             {% endif %}
+            <p class="round-complete__note" data-{{ c }}-target="practiceMessage" hidden></p>
             <p class="round-complete__note" data-{{ c }}-target="saveFailedMessage" hidden>{{ 'game.bubbles.save_failed'|trans }}</p>
             <div class="round-complete__actions">
                 <button type="button" class="action-button" data-action="{{ c }}#restart" data-{{ c }}-target="restart">

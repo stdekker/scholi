@@ -9,6 +9,7 @@ import {
     isRoundComplete,
     isTimeUp,
     MAX_ATTEMPTS,
+    practiceSeconds,
     registerWrongAnswer,
     remainingTasks,
     roundDuration,
@@ -232,5 +233,37 @@ describe('freezing after wrong answers', () => {
         expect(round.finishedAt).toBe(20_000);
         expect(frozenTasks(round)).toHaveLength(10);
         expect(isPassed(round)).toBe(false);
+    });
+});
+
+describe('practiceSeconds', () => {
+    const solveAll = (round, now) =>
+        round.tasks.reduce((current, task) => solveTask(current, task.id, now), round);
+
+    it('is 0 until the round is finished', () => {
+        const round = startTimer(roundOf(3), 1_000);
+
+        expect(practiceSeconds(roundOf(3))).toBe(0);
+        expect(practiceSeconds(solveTask(round, 1, 30_000))).toBe(0);
+    });
+
+    it('counts the whole seconds from the clock start to the end', () => {
+        expect(practiceSeconds(solveAll(startTimer(roundOf(3), 1_000), 46_999))).toBe(45);
+        expect(practiceSeconds(solveAll(startTimer(roundOf(3), 1_000), 47_000))).toBe(46);
+    });
+
+    it('also counts the time after the limit', () => {
+        expect(practiceSeconds(solveAll(startTimer(roundOf(3, 60_000), 0), 95_500))).toBe(95);
+    });
+
+    it('also counts a round that ended with frozen bubbles', () => {
+        let round = startTimer(roundOf(2), 0);
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            round = registerWrongAnswer(round, 1, 20_000);
+        }
+        round = solveTask(round, 2, 30_000);
+
+        expect(isPassed(round)).toBe(false);
+        expect(practiceSeconds(round)).toBe(30);
     });
 });

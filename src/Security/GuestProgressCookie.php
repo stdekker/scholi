@@ -7,6 +7,7 @@ namespace App\Security;
 use App\Game\Game;
 use App\Game\RoundResultInput;
 use App\Player\GuestProgress;
+use App\Player\PracticeTime;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,7 +16,8 @@ use Symfony\Component\HttpFoundation\Request;
  * Keeps a guest's progress in the browser: an HttpOnly cookie signed with an HMAC, so it only
  * ever holds results the server accepted. It moves to the account when the guest makes a player.
  *
- * Value: base64url({"v":2,"r":{"<game>":{"<level>":[bestMs, completedAtUnix]}}}) . "." . base64url(hmac)
+ * Value: base64url({"v":2,"r":{"<game>":{"<level>":[bestMs, completedAtUnix]}},"p":{"<Y-m-d>":seconds}}) . "." . base64url(hmac)
+ * "p" (practice time per day, see PracticeTime) is optional: older version 2 cookies lack it.
  * Version 1 had only tafels: {"v":1,"r":{"<table>":[…]}}. It is still read, so guests keep their stars.
  */
 final readonly class GuestProgressCookie
@@ -83,7 +85,11 @@ final readonly class GuestProgressCookie
             $results[$game] = (object) $entries;
         }
 
-        $payload = self::base64UrlEncode(json_encode(['v' => self::VERSION, 'r' => (object) $results], \JSON_THROW_ON_ERROR));
+        $data = ['v' => self::VERSION, 'r' => (object) $results];
+        if ([] !== $progress->practice) {
+            $data['p'] = $progress->practice;
+        }
+        $payload = self::base64UrlEncode(json_encode($data, \JSON_THROW_ON_ERROR));
 
         return $payload.'.'.$this->sign($payload);
     }
@@ -136,6 +142,18 @@ final readonly class GuestProgressCookie
 
                 $progress = $progress->withResult($game, $level, $durationMs, min($now, $now->setTimestamp($completedAt)));
             }
+        }
+
+        $windowStart = PracticeTime::windowStart()->format('Y-m-d');
+        $today = PracticeTime::today()->format('Y-m-d');
+        foreach (\is_array($data['p'] ?? null) ? $data['p'] : [] as $day => $seconds) {
+            // Days outside the window no longer count; skip anything that isn't a plain day and a sane number.
+            if (!\is_string($day) || 1 !== preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) || $day > $today
+                || !\is_int($seconds) || $seconds < 1 || $seconds > PracticeTime::MAX_DAY_SECONDS) {
+                continue;
+            }
+
+            $progress = $progress->withPractice($day, $seconds, $windowStart);
         }
 
         return $progress;

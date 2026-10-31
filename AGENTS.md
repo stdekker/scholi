@@ -119,11 +119,20 @@ Each game only decides **which sums** a round asks and its texts. Everything els
   - For a guest, it goes into the **guest progress cookie** (200), and the panel says "Je resultaat is bewaard op deze computer" with a link to make a player.
 - **Progress:** the pickers and the player page show each level's best result: ⭐ + best time when done within the time, ✓ + best time when completed more slowly. Guests see the badges from their cookie on the pickers.
 - **Guest progress cookie** (`App\Security\GuestProgressCookie`, `App\Player\GuestProgress`):
-  - `scholi_guest`: HttpOnly, SameSite=Lax, 400 days. It holds only the best time and date per game and level, never `passed`.
+  - `scholi_guest`: HttpOnly, SameSite=Lax, 400 days. It holds only the best time and date per game and level (never `passed`), and the practice seconds per day of the last seven days.
   - Version 2 is `{"v":2,"r":{"<game>":{"<level>":[ms, ts]}}}`. Version 1 (tafels only) is still read as tafels.
   - Signed with an HMAC (a key derived from `APP_SECRET`), so it only holds results the server accepted. A tampered or malformed cookie is ignored, and cleared on the pickers.
   - Nothing about guests is stored on the server.
 - Game pages set `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
+- **Practice time** (`App\Player\PracticeTime`): the whole minutes played in the last seven days.
+  - **What counts:** every finished round, also rounds with frozen bubbles and unsaved rounds such as "geoefende tafels". A round that is left before it ends doesn't count.
+  - **Measuring:** `practiceSeconds()` counts the whole seconds from the clock's start (after 3-2-1) to the end of the round, including time after the limit.
+  - **Sending:** when the round ends, the controller POSTs `{seconds}` as JSON to `/oefentijd` (`PracticeController`, 1–3600 s). It does this first and only then saves the result: the two calls go one after the other because both rewrite the guest cookie.
+  - **Storing:** seconds are summed per calendar day (Europe/Amsterdam). The window is today and the 6 days before (`WINDOW_DAYS`); the minutes are the summed seconds ÷ 60, rounded down.
+    - For a player, they go in `PracticeDay` (one row per player and day). Each write deletes that player's rows from before the window.
+    - For a guest, they go in the cookie under `"p":{"<Y-m-d>":seconds}`, also only for the window.
+  - **Showing:** the endpoint answers `{minutes}`. The completion panel shows "Deze week heb je al … geoefend!" once it is at least 1 minute, and the player page shows the same total.
+- **Header:** for a player, the blue header shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. Guests see "Voortgang bewaren" instead.
 
 ### Rekenen › Tafels
 
@@ -162,7 +171,7 @@ Each game only decides **which sums** a round asks and its texts. Everything els
 - The browser remembers the token in the `scholi_player` cookie (HttpOnly, SameSite=Lax, 400 days, refreshed on every visit). `PlayerCookieAuthenticator` logs the player in on each request; the `main` firewall is stateless and the app uses no session.
 - An unknown or invalid cookie never blocks anyone: the visitor continues as a guest and `PlayerCookieSubscriber` clears the cookie. Opening a valid link sets the cookie (switching player if needed); an unknown link gives a friendly 404.
 - "Uitloggen" (POST with CSRF) deletes the cookie, for shared school computers.
-- **Guest progress moves to the account on registration only**: `/speler/nieuw` turns each guest result (of every game) into a `GameResult` (original date, `passed` recomputed) and clears the guest cookie. Opening an existing player link or logging out leaves the guest cookie alone, so on a shared computer a guest's stars never end up in another child's account.
+- **Guest progress moves to the account on registration only**: `/speler/nieuw` turns each guest result (of every game) into a `GameResult` (original date, `passed` recomputed) and each practice day into a `PracticeDay`, then clears the guest cookie. Opening an existing player link or logging out leaves the guest cookie alone, so on a shared computer a guest's stars never end up in another child's account.
 - Never render the player link as an `<a>` (Turbo prefetches links). Show it in a readonly input with a copy button.
 - JSON endpoints that change data must accept JSON only (`#[MapRequestPayload(acceptFormat: 'json')]`). Together with the SameSite=Lax cookie this is the CSRF protection. HTML forms use Symfony's (stateless) CSRF tokens.
 
@@ -193,7 +202,7 @@ Each game only decides **which sums** a round asks and its texts. Everything els
 - Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS **and fonts** locally into `assets/vendor/` (git-ignored). `importmap:install` downloads them, and `composer install` runs it automatically.
 - Fonts: pin the font's CSS with `ddev console importmap:require @fontsource/<font>/<weight>.css` and import it in `assets/app.js`. AssetMapper also downloads the woff2/woff files that CSS references. Never commit font files and never link to fonts.googleapis.com.
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
-- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, and per finished round the game, level (e.g. the table), duration, passed flag and date. For guests the server stores nothing: their best time and date per game and level live only in the signed `scholi_guest` cookie in their browser. Nothing else: no e-mail, no IP addresses, no tracking.
+- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, per finished round the game, level (e.g. the table), duration, passed flag and date, and the seconds practised per day for the last seven days only (older days are deleted on the player's next round). For guests the server stores nothing: their best time and date per game and level, and their practice seconds per day, live only in the signed `scholi_guest` cookie in their browser. Nothing else: no e-mail, no IP addresses, no tracking.
 
 ## Code style
 

@@ -9,6 +9,7 @@ import {
     isPassed,
     isRoundComplete,
     isTimeUp,
+    practiceSeconds,
     READY_COUNTDOWN_SECONDS,
     remainingTasks,
     registerWrongAnswer,
@@ -63,12 +64,18 @@ export default class BubbleGameController extends Controller {
         'countdown',
         'savedMessage',
         'saveFailedMessage',
+        'practiceMessage',
     ];
 
     static values = {
         timeLimit: Number,
         // Empty when the round isn't saved (e.g. "geoefende tafels").
         saveUrl: String,
+        // Every finished round's seconds go here (practice time), saved or not.
+        practiceUrl: String,
+        // "Deze week heb je al 1 minuut geoefend!" / "… al %minutes% minuten geoefend!"
+        practiceOne: String,
+        practiceMany: String,
         // Screen-reader label of a sum per operator: { plus: "%left% plus %right%", … }.
         sumLabels: Object,
         // "Goed zo! %sum% = %answer%"
@@ -122,6 +129,7 @@ export default class BubbleGameController extends Controller {
         this.completeTarget.hidden = true;
         this.savedMessageTargets.forEach((message) => (message.hidden = true));
         this.saveFailedMessageTargets.forEach((message) => (message.hidden = true));
+        this.practiceMessageTarget.hidden = true;
         this.statusTarget.textContent = '';
         this.updateProgress();
     }
@@ -502,7 +510,46 @@ export default class BubbleGameController extends Controller {
         }
         this.completeTarget.hidden = false;
         this.restartTarget.focus();
-        this.saveResult();
+        this.recordRound();
+    }
+
+    /**
+     * Practice time first, then the result. One after the other on purpose: for a guest both
+     * responses rewrite the progress cookie, and in parallel the second would undo the first.
+     */
+    async recordRound() {
+        await this.recordPractice();
+        await this.saveResult();
+    }
+
+    /** Adds this round's seconds to the practice time; shows the minutes of the last seven days. */
+    async recordPractice() {
+        const seconds = practiceSeconds(this.round);
+        if (!this.practiceUrlValue || seconds === 0) {
+            return;
+        }
+
+        try {
+            const response = await fetch(this.practiceUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ seconds }),
+                credentials: 'same-origin',
+                keepalive: true,
+            });
+            if (!response.ok) {
+                return;
+            }
+
+            const { minutes } = await response.json();
+            if (Number.isInteger(minutes) && minutes > 0) {
+                const text = minutes === 1 ? this.practiceOneValue : this.practiceManyValue;
+                this.practiceMessageTarget.textContent = format(text, { minutes });
+                this.practiceMessageTarget.hidden = false;
+            }
+        } catch {
+            // Practice time is a bonus: a failure stays silent and never blocks the result.
+        }
     }
 
     /** After the round, frozen bubbles show the right answer (only now, so it can't be peeked). */

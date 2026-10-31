@@ -28,4 +28,20 @@ final class GameResultRepository extends ServiceEntityRepository
     {
         return LevelProgress::fromResults($this->findBy(['player' => $player, 'game' => $game]));
     }
+
+    /**
+     * The player's badges over all games: every level with a finished round (⭐ or ✓).
+     */
+    public function badgeCount(Player $player): int
+    {
+        $levels = $this->createQueryBuilder('r')
+            ->select('r.game, r.level')
+            ->where('r.player = :player')
+            ->groupBy('r.game, r.level')
+            ->setParameter('player', $player)
+            ->getQuery()
+            ->getScalarResult();
+
+        return \count($levels);
+    }
 }

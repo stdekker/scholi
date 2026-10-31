@@ -30,6 +30,18 @@
         <p class="player-link__warning">{{ 'player.link.warning'|trans }}</p>
     </section>
 
+    {# Whole minutes played in finished rounds of the last seven days (PracticeTime). #}
+    <p class="practice-time">
+        <span aria-hidden="true">⏱️</span>
+        {% if practice_minutes == 0 %}
+            {{ 'player.practice.zero'|trans }}
+        {% elseif practice_minutes == 1 %}
+            {{ 'player.practice.one'|trans }}
+        {% else %}
+            {{ 'player.practice.many'|trans({'%minutes%': practice_minutes}) }}
+        {% endif %}
+    </p>
+
     <section class="player-card">
         <h2>{{ 'player.progress.title'|trans }}</h2>
         <ul class="progress-list">

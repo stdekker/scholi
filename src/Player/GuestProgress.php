@@ -8,16 +8,19 @@ use App\Game\Game;
 use App\Game\LevelProgress;
 
 /**
- * A guest's best round per game and level, kept in the browser (see GuestProgressCookie) until
- * the guest makes a player. "Passed" is never stored: it follows from the best time.
+ * A guest's best round per game and level, and the seconds practised per day (see PracticeTime),
+ * kept in the browser (see GuestProgressCookie) until the guest makes a player. "Passed" is never
+ * stored: it follows from the best time.
  */
 final readonly class GuestProgress
 {
     /**
-     * @param array<string, array<int, array{bestMs: int, completedAt: \DateTimeImmutable}>> $results keyed by Game value, then level
+     * @param array<string, array<int, array{bestMs: int, completedAt: \DateTimeImmutable}>> $results  keyed by Game value, then level
+     * @param array<string, int>                                                             $practice seconds keyed by day (Y-m-d)
      */
     public function __construct(
         public array $results = [],
+        public array $practice = [],
     ) {
     }
 
@@ -36,12 +39,38 @@ final readonly class GuestProgress
         ksort($results[$game->value]);
         ksort($results);
 
-        return new self($results);
+        return new self($results, $this->practice);
+    }
+
+    /**
+     * Returns the progress with a finished round's seconds added to a day; days before the
+     * window are dropped.
+     *
+     * @param string $day         Y-m-d
+     * @param string $windowStart Y-m-d, the first day that still counts
+     */
+    public function withPractice(string $day, int $seconds, string $windowStart): self
+    {
+        $practice = array_filter($this->practice, static fn (string $kept): bool => $kept >= $windowStart, \ARRAY_FILTER_USE_KEY);
+        if ($day >= $windowStart) {
+            $practice[$day] = min(PracticeTime::MAX_DAY_SECONDS, ($practice[$day] ?? 0) + $seconds);
+        }
+        ksort($practice);
+
+        return new self($this->results, $practice);
+    }
+
+    /**
+     * @param string $windowStart Y-m-d, the first day that still counts
+     */
+    public function practiceSeconds(string $windowStart): int
+    {
+        return array_sum(array_filter($this->practice, static fn (string $day): bool => $day >= $windowStart, \ARRAY_FILTER_USE_KEY));
     }
 
     public function isEmpty(): bool
     {
-        return [] === $this->results;
+        return [] === $this->results && [] === $this->practice;
     }
 
     /**

@@ -6,10 +6,12 @@ namespace App\Tests\Controller;
 
 use App\Entity\GameResult;
 use App\Entity\Player;
+use App\Entity\PracticeDay;
 use App\Game\Game;
 use App\Game\TafelsMix;
 use App\Player\FunNameGenerator;
 use App\Player\GuestProgress;
+use App\Player\PracticeTime;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
 use App\Tests\Support\PlayerTestTrait;
@@ -57,7 +59,7 @@ final class PlayerControllerTest extends WebTestCase
 
         $client->followRedirect();
         self::assertSelectorTextContains('h1', 'Hoi Rekenkanon 🦉!');
-        self::assertSelectorTextSame('.site-header__player', 'Rekenkanon 🦉');
+        self::assertSelectorTextSame('.site-header__name', 'Rekenkanon 🦉');
         self::assertSelectorTextContains('.notice--success', 'Je speler is gemaakt!');
         self::assertSelectorExists(\sprintf('#player-link[value="http://localhost/speler/%s"]', $token));
     }
@@ -70,7 +72,8 @@ final class PlayerControllerTest extends WebTestCase
             ->withResult(Game::Tafels, 6, 48_200, $playedAt)
             ->withResult(Game::Tafels, 7, 75_000, $playedAt)
             ->withResult(Game::Tafels, TafelsMix::TwoToTen->value, 110_000, $playedAt)
-            ->withResult(Game::ErbijEraf, 32, 50_000, $playedAt));
+            ->withResult(Game::ErbijEraf, 32, 50_000, $playedAt)
+            ->withPractice(PracticeTime::today()->format('Y-m-d'), 200, PracticeTime::windowStart()->format('Y-m-d')));
 
         $client->request('GET', '/speler/nieuw');
         self::assertSelectorTextContains('.notice--success', 'gaat mee naar je nieuwe speler');
@@ -90,8 +93,12 @@ final class PlayerControllerTest extends WebTestCase
         );
         self::assertEquals($playedAt, $results[1]->getCompletedAt());
 
+        $days = $this->entityManager()->getRepository(PracticeDay::class)->findBy(['player' => $player]);
+        self::assertSame([[PracticeTime::today()->format('Y-m-d'), 200]], array_map(static fn (PracticeDay $day): array => [$day->getDay()->format('Y-m-d'), $day->getSeconds()], $days));
+
         $client->followRedirect();
         self::assertSelectorCount(4, '.progress-badge');
+        self::assertSelectorTextContains('.practice-time', 'Deze week heb je 3 minuten geoefend.');
     }
 
     public function testTamperedGuestProgressIsNotTransferred(): void
@@ -160,7 +167,7 @@ final class PlayerControllerTest extends WebTestCase
 
         $client->request('GET', '/');
 
-        self::assertSelectorTextSame('.site-header__player', '👤 Oude Speler');
+        self::assertSelectorTextSame('.site-header__name', '👤 Oude Speler');
     }
 
     public function testNameIsRequired(): void
@@ -281,6 +288,62 @@ final class PlayerControllerTest extends WebTestCase
         self::assertSelectorTextContains('.progress-list__item:nth-child(6) .progress-badge--passed', 'Beste tijd 0:45');
         self::assertSelectorTextContains('.progress-list__item:nth-child(7) .progress-badge--done', 'Beste tijd 1:15');
         self::assertSelectorTextContains('.progress-list__item:nth-child(1)', 'Nog niet geoefend');
+    }
+
+    public function testHeaderShowsBadgesAndMinutes(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $this->addResult($player, 6, 45_000);
+        $this->addResult($player, 6, 70_000);                    // the same badge again
+        $this->addResult($player, 7, 90_000);                    // ✓ counts too
+        $this->addResult($player, 32, 50_000, Game::ErbijEraf);
+        $entityManager = $this->entityManager();
+        $entityManager->persist(new PracticeDay($player, PracticeTime::today(), 400));
+        $entityManager->flush();
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/rekenen');
+
+        self::assertSelectorTextContains('.site-header__stats', '⭐ 3');
+        self::assertSelectorTextContains('.site-header__stats', '⏱️ 6 min');
+        self::assertSelectorTextContains('.site-header__player .visually-hidden', '3 badges, deze week 6 minuten geoefend');
+    }
+
+    public function testGuestHeaderHasNoStats(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/rekenen');
+
+        self::assertSelectorNotExists('.site-header__stats');
+    }
+
+    public function testPlayerPageShowsPracticeTime(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $playerId = $player->getId();
+        // Every request reboots the kernel, so look the player up in the current entity manager.
+        $addDay = function (string $daysAgo, int $seconds) use ($playerId): void {
+            $entityManager = $this->entityManager();
+            $player = $entityManager->find(Player::class, $playerId);
+            self::assertNotNull($player);
+            $entityManager->persist(new PracticeDay($player, PracticeTime::today()->modify($daysAgo), $seconds));
+            $entityManager->flush();
+        };
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/speler');
+        self::assertSelectorTextContains('.practice-time', 'Deze week heb je nog geen hele minuut geoefend.');
+
+        $addDay('-0 days', 70);
+        $client->request('GET', '/speler');
+        self::assertSelectorTextContains('.practice-time', 'Deze week heb je 1 minuut geoefend.');
+
+        $addDay('-3 days', 1_000);
+        $addDay('-10 days', 6_000);
+        $client->request('GET', '/speler');
+        self::assertSelectorTextContains('.practice-time', 'Deze week heb je 17 minuten geoefend.');
     }
 
     public function testPlayerPageShowsErbijErafProgress(): void

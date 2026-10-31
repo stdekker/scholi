@@ -31,6 +31,9 @@ game:
         save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
         guest_saved: Je resultaat is bewaard op deze computer.
         guest_link: Maak een speler om het altijd te bewaren.
+        practice:
+            one: Deze week heb je al 1 minuut geoefend!
+            many: 'Deze week heb je al %minutes% minuten geoefend!'
         # "Lukt het binnen %within%?"
         within:
             one_minute: een minuut
@@ -122,6 +125,8 @@ game:
 player:
     header:
         save_progress: Voortgang bewaren
+        minutes: '%minutes% min'
+        stats: '%badges% badges, deze week %minutes% minuten geoefend'
     new:
         title: Maak je speler
         intro: Dan bewaren we hoe goed je de sommen kent. Je hoeft alleen een naam te kiezen.
@@ -143,6 +148,10 @@ player:
         copied: De link is gekopieerd!
         copy_failed: Kopiëren lukte niet. De link is geselecteerd, kopieer hem zelf.
         warning: Laat deze link alleen aan je ouders of je juf of meester zien. Wie de link heeft, speelt als jou. Kwijt is kwijt!
+    practice:
+        zero: Deze week heb je nog geen hele minuut geoefend.
+        one: Deze week heb je 1 minuut geoefend.
+        many: 'Deze week heb je %minutes% minuten geoefend.'
     progress:
         title: Jouw tafels
         not_yet: Nog niet geoefend

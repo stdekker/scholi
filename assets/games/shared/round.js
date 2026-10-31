@@ -248,3 +248,16 @@ export function roundDuration(round) {
 
     return round.finishedAt - round.startedAt;
 }
+
+/**
+ * Practice time of a finished round: the whole seconds from the clock's start to the end of the
+ * round, also after the time limit and also when bubbles froze. 0 while the round is not finished.
+ *
+ * @param {Round} round
+ * @returns {number}
+ */
+export function practiceSeconds(round) {
+    const duration = roundDuration(round);
+
+    return duration === null ? 0 : Math.floor(duration / 1000);
+}

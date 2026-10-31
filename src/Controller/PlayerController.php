@@ -6,14 +6,17 @@ namespace App\Controller;
 
 use App\Entity\GameResult;
 use App\Entity\Player;
+use App\Entity\PracticeDay;
 use App\Form\PlayerType;
 use App\Game\ErbijEraf;
 use App\Game\Game;
 use App\Game\Tafels;
 use App\Game\TafelsMix;
 use App\Player\FunNameGenerator;
+use App\Player\PracticeTime;
 use App\Repository\GameResultRepository;
 use App\Repository\PlayerRepository;
+use App\Repository\PracticeDayRepository;
 use App\Security\GuestProgressCookie;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
@@ -41,6 +44,7 @@ final class PlayerController extends AbstractController
     public function show(
         Request $request,
         GameResultRepository $results,
+        PracticeDayRepository $practiceDays,
         #[CurrentUser] ?Player $player = null,
     ): Response {
         if (null === $player) {
@@ -60,6 +64,7 @@ final class PlayerController extends AbstractController
             'progress' => $results->progressFor($player, Game::Tafels),
             'erbij_eraf_grid' => ErbijEraf::grid(),
             'erbij_eraf_progress' => $results->progressFor($player, Game::ErbijEraf),
+            'practice_minutes' => PracticeTime::minutes($practiceDays->secondsInWindow($player)),
         ]);
     }
 
@@ -90,6 +95,9 @@ final class PlayerController extends AbstractController
             $entityManager->persist($player);
             foreach ($guestProgress?->entries() ?? [] as [$game, $level, $bestMs, $completedAt]) {
                 $entityManager->persist(new GameResult($player, $game, $level, $bestMs, $completedAt));
+            }
+            foreach ($guestProgress->practice ?? [] as $day => $seconds) {
+                $entityManager->persist(new PracticeDay($player, PracticeTime::day($day), $seconds));
             }
             $entityManager->flush();
 

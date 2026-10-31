@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Security;
 use App\Game\Game;
 use App\Game\TafelsMix;
 use App\Player\GuestProgress;
+use App\Player\PracticeTime;
 use App\Security\GuestProgressCookie;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -154,6 +155,42 @@ final class GuestProgressCookieTest extends TestCase
         $progress = (new GuestProgressCookie(self::SECRET))->decode($this->sign($payload));
 
         self::assertSame(['erbij-eraf' => [11]], array_map(array_keys(...), $progress->results ?? []));
+    }
+
+    public function testKeepsPracticeDaysOfTheWindow(): void
+    {
+        $cookie = new GuestProgressCookie(self::SECRET);
+        $today = PracticeTime::today()->format('Y-m-d');
+        $sixDaysAgo = PracticeTime::today()->modify('-6 days')->format('Y-m-d');
+        $value = $cookie->encode((new GuestProgress())
+            ->withPractice($sixDaysAgo, 300, $sixDaysAgo)
+            ->withPractice($today, 90, $sixDaysAgo));
+
+        self::assertSame([$sixDaysAgo => 300, $today => 90], $cookie->decode($value)?->practice);
+    }
+
+    public function testSkipsPracticeDaysOutsideTheRules(): void
+    {
+        $today = PracticeTime::today()->format('Y-m-d');
+        $payload = self::base64Url(json_encode(['v' => 2, 'r' => [], 'p' => [
+            PracticeTime::today()->modify('-7 days')->format('Y-m-d') => 60,   // outside the window
+            PracticeTime::today()->modify('+1 day')->format('Y-m-d') => 60,    // in the future
+            'gisteren' => 60,                                                  // not a day
+            $today => 90_000,                                                   // more than a day
+        ]], \JSON_THROW_ON_ERROR));
+
+        self::assertSame([], (new GuestProgressCookie(self::SECRET))->decode($this->sign($payload))?->practice);
+    }
+
+    public function testVersionTwoWithoutPracticeIsStillValid(): void
+    {
+        $payload = self::base64Url('{"v":2,"r":{"tafels":{"6":[45000,1792000000]}}}');
+
+        $progress = (new GuestProgressCookie(self::SECRET))->decode($this->sign($payload));
+
+        self::assertNotNull($progress);
+        self::assertSame([], $progress->practice);
+        self::assertSame([6], array_keys($progress->progress(Game::Tafels)));
     }
 
     public function testClampsDatesInTheFuture(): void
