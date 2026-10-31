@@ -1,0 +1,13 @@
+{% extends 'game/bubble_game.html.twig' %}
+
+{# One round of erbij en eraf: ten sums of one level (level) and operation. #}
+{% set controller = 'erbij-eraf' %}
+{% set values = {level: level.value, operation: operation.value} %}
+{% set within = within_key|trans %}
+{% set title = 'game.rekenen.erbij_eraf.title'|trans({
+    '%level%': ('game.rekenen.erbij_eraf.levels.' ~ level.key ~ '.name')|trans,
+    '%operation%': ('game.rekenen.erbij_eraf.operations.' ~ operation.key)|trans,
+}) %}
+{% set intro = 'game.rekenen.erbij_eraf.intro'|trans({'%within%': within}) %}
+{% set passed_message = 'game.rekenen.erbij_eraf.done'|trans({'%within%': within}) %}
+{% set back_label = 'game.rekenen.erbij_eraf.other'|trans %}

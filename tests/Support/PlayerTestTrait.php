@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Support;
 
+use App\Entity\GameResult;
 use App\Entity\Player;
-use App\Entity\TafelsResult;
+use App\Game\Game;
 use App\Player\GuestProgress;
 use App\Security\GuestProgressCookie;
 use App\Security\PlayerCookie;
@@ -56,10 +57,10 @@ trait PlayerTestTrait
         return static::getContainer()->get(GuestProgressCookie::class);
     }
 
-    private function addResult(Player $player, int $table, int $durationMs): void
+    private function addResult(Player $player, int $level, int $durationMs, Game $game = Game::Tafels): void
     {
         $entityManager = $this->entityManager();
-        $entityManager->persist(new TafelsResult($player, $table, $durationMs, new \DateTimeImmutable()));
+        $entityManager->persist(new GameResult($player, $game, $level, $durationMs, new \DateTimeImmutable()));
         $entityManager->flush();
     }
 

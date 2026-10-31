@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Player;
 
-use App\Game\TableProgress;
-use App\Game\Tafels;
+use App\Game\Game;
+use App\Game\LevelProgress;
 
 /**
- * A guest's best tafels round per table, kept in the browser (see GuestProgressCookie) until
+ * A guest's best round per game and level, kept in the browser (see GuestProgressCookie) until
  * the guest makes a player. "Passed" is never stored: it follows from the best time.
  */
 final readonly class GuestProgress
 {
     /**
-     * @param array<int, array{bestMs: int, completedAt: \DateTimeImmutable}> $results keyed by table number
+     * @param array<string, array<int, array{bestMs: int, completedAt: \DateTimeImmutable}>> $results keyed by Game value, then level
      */
     public function __construct(
         public array $results = [],
@@ -22,17 +22,18 @@ final readonly class GuestProgress
     }
 
     /**
-     * Returns the progress with this round added, if it beats the best time for its table.
+     * Returns the progress with this round added, if it beats the best time for its level.
      */
-    public function withResult(int $table, int $durationMs, \DateTimeImmutable $completedAt): self
+    public function withResult(Game $game, int $level, int $durationMs, \DateTimeImmutable $completedAt): self
     {
-        $current = $this->results[$table] ?? null;
+        $current = $this->results[$game->value][$level] ?? null;
         if (null !== $current && $current['bestMs'] <= $durationMs) {
             return $this;
         }
 
         $results = $this->results;
-        $results[$table] = ['bestMs' => $durationMs, 'completedAt' => $completedAt];
+        $results[$game->value][$level] = ['bestMs' => $durationMs, 'completedAt' => $completedAt];
+        ksort($results[$game->value]);
         ksort($results);
 
         return new self($results);
@@ -44,15 +45,34 @@ final readonly class GuestProgress
     }
 
     /**
-     * @return array<int, TableProgress> keyed by table number, sorted
+     * @return array<int, LevelProgress> keyed by level, sorted
      */
-    public function progress(): array
+    public function progress(Game $game): array
     {
         $progress = [];
-        foreach ($this->results as $table => $result) {
-            $progress[$table] = new TableProgress($table, $result['bestMs'], Tafels::isPassed($table, $result['bestMs']));
+        foreach ($this->results[$game->value] ?? [] as $level => $result) {
+            $progress[$level] = new LevelProgress($level, $result['bestMs'], $game->isPassed($level, $result['bestMs']), $game->timeLimitMs($level));
         }
 
         return $progress;
+    }
+
+    /**
+     * Every result, e.g. to move them to a new player.
+     *
+     * @return iterable<array{Game, int, int, \DateTimeImmutable}> game, level, best time (ms), completed at
+     */
+    public function entries(): iterable
+    {
+        foreach ($this->results as $game => $levels) {
+            $knownGame = Game::tryFrom($game);
+            if (null === $knownGame) {
+                continue;
+            }
+
+            foreach ($levels as $level => $result) {
+                yield [$knownGame, $level, $result['bestMs'], $result['completedAt']];
+            }
+        }
     }
 }

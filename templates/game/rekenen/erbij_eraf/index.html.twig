@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'game.rekenen.erbij_eraf.name'|trans }} – {{ parent() }}{% endblock %}
+
+{% block meta %}
+    {# Badges change after every round; never show a stale copy from Turbo's cache. #}
+    <meta name="turbo-cache-control" content="no-cache">
+{% endblock %}
+
+{% block body %}
+    <h1>{{ 'game.rekenen.erbij_eraf.name'|trans }}</h1>
+    <p>{{ 'game.rekenen.erbij_eraf.picker_intro'|trans }}</p>
+
+    <ol class="level-picker">
+        {% for row in grid %}
+            {% set level_key = 'game.rekenen.erbij_eraf.levels.' ~ row.level.key %}
+            <li class="level-picker__level">
+                <h2 class="level-picker__title">{{ (level_key ~ '.name')|trans }}</h2>
+                <p class="level-picker__example">{{ 'game.rekenen.erbij_eraf.example'|trans({'%example%': (level_key ~ '.example')|trans}) }}</p>
+                <ul class="table-picker table-picker--operations">
+                    {% for round in row.rounds %}
+                        <li>
+                            <a class="table-picker__link" href="{{ path('app_game_rekenen_erbij_eraf_spel', {level: row.level.slug, operation: round.operation.value}) }}">
+                                <span class="table-picker__label">{{ ('game.rekenen.erbij_eraf.operations.' ~ round.operation.key)|trans }}</span>
+                                {% if progress[round.stored] is defined %}
+                                    {{ include('player/_progress_badge.html.twig', {result: progress[round.stored], compact: true}) }}
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </li>
+        {% endfor %}
+    </ol>
+
+    <p class="table-picker__back">
+        <a class="action-button action-button--secondary action-button--small" href="{{ path('app_game_rekenen') }}">
+            <span aria-hidden="true">←</span> {{ 'game.rekenen.back'|trans }}
+        </a>
+    </p>
+{% endblock %}

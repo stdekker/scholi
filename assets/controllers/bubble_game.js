@@ -1,0 +1,589 @@
+import { Controller } from '@hotwired/stimulus';
+import { format, formatSum, formatTime } from '../games/shared/format.js';
+import { appendDigit, removeLastDigit } from '../games/shared/input.js';
+import {
+    checkAnswer,
+    createRound,
+    findTask,
+    frozenTasks,
+    isPassed,
+    isRoundComplete,
+    isTimeUp,
+    READY_COUNTDOWN_SECONDS,
+    remainingTasks,
+    registerWrongAnswer,
+    roundDuration,
+    solveTask,
+    startTimer,
+    timeLeft,
+} from '../games/shared/round.js';
+
+const BUBBLE_HUES = [200, 280, 330, 30, 150, 50];
+// Fallback for when no animationend fires (e.g. prefers-reduced-motion).
+const POP_FALLBACK_MS = 600;
+const CLOCK_TICK_MS = 200;
+// How long "Start!" stays visible before the ready dialog closes.
+const GO_VISIBLE_MS = 800;
+// Delay between bubbles popping up one after another.
+const APPEAR_STAGGER_MS = 40;
+// Opens a bubble by itself when none has been opened for this long.
+const AUTO_OPEN_DELAY_MS = 3000;
+
+/*
+ * Base class of the bubble games (tafels, erbij en eraf): one bubble per sum; click a bubble,
+ * type the answer, pop it. Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1
+ * countdown; then the clock starts. When it runs out the pupil can still finish.
+ * If no bubble is open for AUTO_OPEN_DELAY_MS, the focused (or else first) bubble opens.
+ *
+ * Not a controller itself (the file name has no _controller suffix): a game's controller
+ * extends it and implements createSums(). Stimulus merges the subclass's static values.
+ * DOM wiring only — the round rules live in assets/games/shared/round.js.
+ * The markup is templates/game/_bubble_game.html.twig.
+ *
+ * Translated texts arrive as values with %placeholders%, filled in with format().
+ */
+export default class BubbleGameController extends Controller {
+    static targets = [
+        'field',
+        'bubbleTemplate',
+        'keypad',
+        'status',
+        'progress',
+        'complete',
+        'restart',
+        'timer',
+        'time',
+        'passedMessage',
+        'lateMessage',
+        'frozenMessage',
+        'readyDialog',
+        'readyTime',
+        'readyButton',
+        'readyBack',
+        'countdown',
+        'savedMessage',
+        'saveFailedMessage',
+    ];
+
+    static values = {
+        timeLimit: Number,
+        // Empty when the round isn't saved (e.g. "geoefende tafels").
+        saveUrl: String,
+        // Screen-reader label of a sum per operator: { plus: "%left% plus %right%", … }.
+        sumLabels: Object,
+        // "Goed zo! %sum% = %answer%"
+        correct: String,
+        tryAgain: String,
+        // Shown when a bubble freezes after too many wrong answers.
+        frozen: String,
+        // Screen-reader label of a frozen bubble: "%label%, bevroren".
+        frozenLabel: String,
+        // Screen-reader label of a frozen bubble once the answer is shown: "%label% is %answer%".
+        revealedLabel: String,
+        // Completion text when bubbles froze: "%solved% van de %total% …".
+        doneFrozen: String,
+        remaining: String,
+        timeUp: String,
+        go: String,
+    };
+
+    connect() {
+        this.timers = new Set();
+        this.start();
+    }
+
+    disconnect() {
+        this.stopClock();
+        this.timers.forEach((timer) => clearTimeout(timer));
+        this.timers.clear();
+    }
+
+    /**
+     * The sums of a new round, in the order the bubbles appear. Implemented by each game.
+     *
+     * @returns {import('../games/shared/round.js').Sum[]}
+     */
+    createSums() {
+        throw new Error('A bubble game must implement createSums()');
+    }
+
+    start() {
+        this.stopClock();
+        this.cancelAutoOpen();
+        this.round = createRound(this.createSums(), this.timeLimitValue);
+        this.activeBubble = null;
+        this.timerTarget.classList.remove('round-timer--expired');
+        this.renderClock();
+        this.showReady();
+
+        // Bubbles only appear once the ready countdown is over (see revealBubbles).
+        this.fieldTarget.replaceChildren();
+        this.keypadTarget.hidden = true;
+        this.completeTarget.hidden = true;
+        this.savedMessageTargets.forEach((message) => (message.hidden = true));
+        this.saveFailedMessageTargets.forEach((message) => (message.hidden = true));
+        this.statusTarget.textContent = '';
+        this.updateProgress();
+    }
+
+    restart() {
+        this.start();
+    }
+
+    showReady() {
+        this.readyDone = false;
+        this.readyTimeTarget.textContent = formatTime(this.round.timeLimitMs);
+        this.readyButtonTarget.hidden = false;
+        this.readyBackTarget.hidden = false;
+        this.countdownTarget.textContent = '';
+        if (!this.readyDialogTarget.open) {
+            this.readyDialogTarget.showModal();
+        }
+        this.readyButtonTarget.focus();
+    }
+
+    /** "Ik ben er klaar voor!" → 3, 2, 1, Start! → close the dialog and start the clock. */
+    ready() {
+        this.readyButtonTarget.hidden = true;
+        this.readyBackTarget.hidden = true;
+
+        for (let step = 0; step < READY_COUNTDOWN_SECONDS; step++) {
+            this.schedule(step * 1000, () =>
+                this.showCountdown(String(READY_COUNTDOWN_SECONDS - step)),
+            );
+        }
+        this.schedule(READY_COUNTDOWN_SECONDS * 1000, () => this.showCountdown(this.goValue));
+        this.schedule(READY_COUNTDOWN_SECONDS * 1000 + GO_VISIBLE_MS, () => {
+            this.readyDone = true;
+            this.readyDialogTarget.close();
+            this.revealBubbles();
+            this.startClock();
+            this.fieldTarget.querySelector('.bubble__sum')?.focus();
+            this.scheduleAutoOpen();
+        });
+    }
+
+    showCountdown(text) {
+        const countdown = this.countdownTarget;
+        countdown.textContent = text;
+        countdown.classList.remove('ready-dialog__countdown--tick');
+        // Force a reflow so the pop-in animation restarts for every step.
+        void countdown.offsetWidth;
+        countdown.classList.add('ready-dialog__countdown--tick');
+    }
+
+    /** The countdown is the only way out of the ready dialog (no Escape). */
+    preventCancel(event) {
+        event.preventDefault();
+    }
+
+    /**
+     * Browsers may still close the dialog (e.g. Escape before any user interaction, where
+     * `cancel` is not cancelable and `closedby` is unsupported): reopen it.
+     */
+    readyClosed() {
+        if (this.readyDone) {
+            return;
+        }
+
+        this.readyDialogTarget.showModal();
+        if (!this.readyButtonTarget.hidden) {
+            this.readyButtonTarget.focus();
+        }
+    }
+
+    schedule(delay, callback) {
+        const timer = setTimeout(() => {
+            this.timers.delete(timer);
+            callback();
+        }, delay);
+        this.timers.add(timer);
+    }
+
+    /** (Re)starts the idle wait after which a bubble opens by itself. */
+    scheduleAutoOpen() {
+        this.cancelAutoOpen();
+        if (!this.readyDone || this.activeBubble || isRoundComplete(this.round)) {
+            return;
+        }
+
+        this.autoOpenTimer = setTimeout(() => {
+            this.timers.delete(this.autoOpenTimer);
+            this.autoOpenTimer = null;
+            const bubble = this.activeBubble ? null : this.bubbleToActivate();
+            if (bubble) {
+                this.activate(bubble);
+            }
+        }, AUTO_OPEN_DELAY_MS);
+        this.timers.add(this.autoOpenTimer);
+    }
+
+    cancelAutoOpen() {
+        clearTimeout(this.autoOpenTimer);
+        this.timers.delete(this.autoOpenTimer);
+        this.autoOpenTimer = null;
+    }
+
+    revealBubbles() {
+        this.fieldTarget.replaceChildren(
+            ...this.round.tasks.map((task, index) => this.createBubble(task, index)),
+        );
+    }
+
+    /**
+     * Screen-reader text of a sum, e.g. "7 plus 5".
+     *
+     * @param {import('../games/shared/round.js').Task} task
+     */
+    sumLabel(task) {
+        return format(this.sumLabelsValue[task.operator] ?? formatSum(task), task);
+    }
+
+    /**
+     * @param {import('../games/shared/round.js').Task} task
+     * @param {number} index position in the field, for the staggered pop-up
+     */
+    createBubble(task, index) {
+        const bubble = this.bubbleTemplateTarget.content.firstElementChild.cloneNode(true);
+
+        bubble.dataset.taskId = String(task.id);
+        bubble.classList.add('bubble--appearing');
+        bubble.style.setProperty('--appear-delay', `${index * APPEAR_STAGGER_MS}ms`);
+        bubble.style.setProperty('--bubble-hue', String(BUBBLE_HUES[task.id % BUBBLE_HUES.length]));
+        bubble.style.setProperty('--bubble-delay', `${(-Math.random() * 3).toFixed(2)}s`);
+        bubble.querySelector('.bubble__question').textContent = `${formatSum(task)} =`;
+        bubble.querySelector('.bubble__sum').setAttribute('aria-label', this.sumLabel(task));
+
+        bubble.addEventListener('animationend', (event) => this.animationEnded(event, bubble));
+
+        return bubble;
+    }
+
+    open(event) {
+        this.activate(event.currentTarget.closest('.bubble'));
+    }
+
+    activate(bubble) {
+        if (
+            bubble === this.activeBubble ||
+            bubble.classList.contains('bubble--popping') ||
+            bubble.classList.contains('bubble--frozen')
+        ) {
+            this.answerInput()?.focus();
+            return;
+        }
+
+        this.close();
+        this.cancelAutoOpen();
+        this.activeBubble = bubble;
+        bubble.classList.add('bubble--active');
+        bubble.querySelector('.bubble__sum').setAttribute('aria-expanded', 'true');
+
+        const input = this.answerInput();
+        input.value = '';
+        input.hidden = false;
+        this.keypadTarget.hidden = false;
+        this.statusTarget.textContent = '';
+        input.focus({ preventScroll: true });
+        // scroll-margin on .bubble--active keeps the bubble clear of the sticky keypad dock.
+        bubble.scrollIntoView({ block: 'nearest' });
+    }
+
+    close() {
+        if (!this.activeBubble) {
+            return;
+        }
+
+        this.activeBubble.classList.remove('bubble--active', 'bubble--wrong');
+        this.activeBubble.querySelector('.bubble__sum').setAttribute('aria-expanded', 'false');
+        this.answerInput().hidden = true;
+        this.activeBubble = null;
+        this.keypadTarget.hidden = true;
+        this.scheduleAutoOpen();
+    }
+
+    press({ params: { digit } }) {
+        const input = this.answerInput();
+        if (!input) {
+            return;
+        }
+
+        input.value = appendDigit(input.value, String(digit));
+        input.focus();
+    }
+
+    erase() {
+        const input = this.answerInput();
+        if (!input) {
+            return;
+        }
+
+        input.value = removeLastDigit(input.value);
+        input.focus();
+    }
+
+    /**
+     * Typing a digit anywhere on the page answers a bubble: the open one, else the focused
+     * bubble, else the first remaining bubble.
+     */
+    typeAnywhere(event) {
+        const digit = event.key;
+        if (
+            !/^\d$/.test(digit) ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.altKey ||
+            this.readyDialogTarget.open ||
+            event.target.classList?.contains('bubble__answer')
+        ) {
+            return;
+        }
+
+        const bubble = this.activeBubble ?? this.bubbleToActivate();
+        if (!bubble) {
+            return;
+        }
+
+        // Handle the digit ourselves: focus moves to the answer field during this keydown.
+        event.preventDefault();
+        this.activate(bubble);
+        const input = this.answerInput();
+        input.value = appendDigit(input.value, digit);
+        input.focus();
+    }
+
+    bubbleToActivate() {
+        const available = (bubble) =>
+            bubble &&
+            !bubble.classList.contains('bubble--popping') &&
+            !bubble.classList.contains('bubble--frozen');
+        const focused = document.activeElement?.closest('.bubble');
+
+        if (available(focused) && this.fieldTarget.contains(focused)) {
+            return focused;
+        }
+
+        return [...this.fieldTarget.children].find(available) ?? null;
+    }
+
+    /** Keeps physical-keyboard input to digits only. */
+    typed(event) {
+        const input = event.currentTarget;
+        input.value = [...input.value].reduce((value, char) => appendDigit(value, char), '');
+    }
+
+    keydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.submit();
+        } else if (event.key === 'Escape') {
+            const button = this.activeBubble?.querySelector('.bubble__sum');
+            this.close();
+            button?.focus();
+        }
+    }
+
+    submit() {
+        const bubble = this.activeBubble;
+        if (!bubble) {
+            return;
+        }
+
+        const input = this.answerInput();
+        const task = findTask(this.round, Number(bubble.dataset.taskId));
+        if (!task || input.value === '') {
+            input.focus();
+            return;
+        }
+
+        if (!checkAnswer(task, input.value)) {
+            this.round = registerWrongAnswer(this.round, task.id, Date.now());
+            if (findTask(this.round, task.id)?.frozen) {
+                this.freeze(bubble, task);
+                return;
+            }
+
+            this.statusTarget.textContent = this.tryAgainValue;
+            bubble.classList.remove('bubble--wrong');
+            // Force a reflow so the wiggle animation restarts on repeated wrong answers.
+            void bubble.offsetWidth;
+            bubble.classList.add('bubble--wrong');
+            input.value = '';
+            input.focus();
+            return;
+        }
+
+        this.round = solveTask(this.round, task.id, Date.now());
+        this.statusTarget.textContent = format(this.correctValue, {
+            sum: formatSum(task),
+            answer: task.answer,
+        });
+
+        this.close();
+        bubble.classList.add('bubble--popping');
+        bubble.querySelector('.bubble__sum').disabled = true;
+        this.updateProgress();
+        this.focusNext(bubble);
+
+        const timer = setTimeout(() => this.removeBubble(bubble), POP_FALLBACK_MS);
+        this.timers.add(timer);
+        bubble.dataset.popTimer = String(timer);
+    }
+
+    /** Third wrong answer: the bubble shrinks, turns grey and can't be answered any more. */
+    freeze(bubble, task) {
+        this.close();
+        this.statusTarget.textContent = this.frozenValue;
+        bubble.classList.add('bubble--frozen');
+        const button = bubble.querySelector('.bubble__sum');
+        button.disabled = true;
+        button.setAttribute(
+            'aria-label',
+            format(this.frozenLabelValue, { label: this.sumLabel(task) }),
+        );
+        this.updateProgress();
+        this.focusNext(bubble);
+    }
+
+    animationEnded(event, bubble) {
+        if (event.target !== bubble) {
+            return;
+        }
+
+        if (event.animationName === 'bubble-pop') {
+            this.removeBubble(bubble);
+        } else if (event.animationName === 'bubble-wiggle') {
+            bubble.classList.remove('bubble--wrong');
+        } else if (event.animationName === 'bubble-appear') {
+            bubble.classList.remove('bubble--appearing');
+        }
+    }
+
+    removeBubble(bubble) {
+        const timer = Number(bubble.dataset.popTimer);
+        clearTimeout(timer);
+        this.timers.delete(timer);
+        bubble.remove();
+    }
+
+    focusNext(poppedBubble) {
+        if (isRoundComplete(this.round)) {
+            this.finish();
+            return;
+        }
+
+        const next = [...this.fieldTarget.children].find(
+            (bubble) =>
+                bubble !== poppedBubble &&
+                !bubble.classList.contains('bubble--popping') &&
+                !bubble.classList.contains('bubble--frozen'),
+        );
+        next?.querySelector('.bubble__sum').focus();
+    }
+
+    finish() {
+        this.stopClock();
+        this.cancelAutoOpen();
+        this.renderClock();
+
+        const passed = isPassed(this.round);
+        const frozen = frozenTasks(this.round).length;
+        this.passedMessageTarget.hidden = !passed;
+        this.lateMessageTarget.hidden = passed || frozen > 0;
+        this.frozenMessageTarget.hidden = frozen === 0;
+        this.frozenMessageTarget.textContent = format(this.doneFrozenValue, {
+            solved: this.round.tasks.length - frozen,
+            total: this.round.tasks.length,
+        });
+        this.revealFrozenAnswers();
+        // "Ga verder met een andere!" no longer applies: the completion panel says how it went.
+        if (frozen > 0) {
+            this.statusTarget.textContent = '';
+        }
+        this.completeTarget.hidden = false;
+        this.restartTarget.focus();
+        this.saveResult();
+    }
+
+    /** After the round, frozen bubbles show the right answer (only now, so it can't be peeked). */
+    revealFrozenAnswers() {
+        for (const task of frozenTasks(this.round)) {
+            const bubble = this.fieldTarget.querySelector(`.bubble[data-task-id="${task.id}"]`);
+            if (!bubble) {
+                continue;
+            }
+
+            const params = { label: this.sumLabel(task), answer: task.answer };
+            bubble.classList.add('bubble--revealed');
+            bubble.querySelector('.bubble__solution').textContent = String(task.answer);
+            bubble
+                .querySelector('.bubble__sum')
+                .setAttribute('aria-label', format(this.revealedLabelValue, params));
+        }
+    }
+
+    async saveResult() {
+        const durationMs = roundDuration(this.round);
+        // Only complete rounds count as progress: rounds with frozen bubbles are not saved.
+        if (!this.saveUrlValue || durationMs === null || frozenTasks(this.round).length > 0) {
+            return;
+        }
+
+        try {
+            const response = await fetch(this.saveUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ durationMs }),
+                credentials: 'same-origin',
+                keepalive: true,
+            });
+            if (!response.ok) {
+                throw new Error(`Saving the result failed: HTTP ${response.status}`);
+            }
+            this.savedMessageTargets.forEach((message) => (message.hidden = false));
+        } catch {
+            this.saveFailedMessageTargets.forEach((message) => (message.hidden = false));
+        }
+    }
+
+    /** Starts the round's clock (once per round). */
+    startClock() {
+        if (this.round.startedAt !== null) {
+            return;
+        }
+
+        this.round = startTimer(this.round, Date.now());
+        this.clock = setInterval(() => this.tick(), CLOCK_TICK_MS);
+    }
+
+    stopClock() {
+        clearInterval(this.clock);
+        this.clock = null;
+    }
+
+    tick() {
+        const now = Date.now();
+        this.renderClock(now);
+
+        if (isTimeUp(this.round, now)) {
+            this.stopClock();
+            this.timerTarget.classList.add('round-timer--expired');
+            this.statusTarget.textContent = this.timeUpValue;
+        }
+    }
+
+    renderClock(now = Date.now()) {
+        const left = timeLeft(this.round, now);
+        this.timeTarget.textContent = formatTime(left);
+        this.timerTarget.style.setProperty('--time-left', String(left / this.round.timeLimitMs));
+    }
+
+    updateProgress() {
+        const count = remainingTasks(this.round).length;
+        this.progressTarget.textContent = count > 0 ? format(this.remainingValue, { count }) : '';
+    }
+
+    answerInput() {
+        return this.activeBubble?.querySelector('.bubble__answer') ?? null;
+    }
+}

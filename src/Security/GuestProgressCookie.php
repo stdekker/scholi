@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security;
 
-use App\Game\Tafels;
-use App\Game\TafelsResultInput;
+use App\Game\Game;
+use App\Game\RoundResultInput;
 use App\Player\GuestProgress;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Cookie;
@@ -15,13 +15,15 @@ use Symfony\Component\HttpFoundation\Request;
  * Keeps a guest's progress in the browser: an HttpOnly cookie signed with an HMAC, so it only
  * ever holds results the server accepted. It moves to the account when the guest makes a player.
  *
- * Value: base64url({"v":1,"r":{"<table>":[bestMs, completedAtUnix]}}) . "." . base64url(hmac)
+ * Value: base64url({"v":2,"r":{"<game>":{"<level>":[bestMs, completedAtUnix]}}}) . "." . base64url(hmac)
+ * Version 1 had only tafels: {"v":1,"r":{"<table>":[…]}}. It is still read, so guests keep their stars.
  */
 final readonly class GuestProgressCookie
 {
     public const string NAME = 'scholi_guest';
     private const string LIFETIME = '+400 days';
-    private const int VERSION = 1;
+    private const int VERSION = 2;
+    private const int VERSION_TAFELS_ONLY = 1;
     /** Derives a key for this purpose only, so the raw APP_SECRET is never used directly. */
     private const string KEY_PURPOSE = 'scholi-guest-progress';
 
@@ -72,11 +74,15 @@ final readonly class GuestProgressCookie
     public function encode(GuestProgress $progress): string
     {
         $results = [];
-        foreach ($progress->results as $table => $result) {
-            $results[$table] = [$result['bestMs'], $result['completedAt']->getTimestamp()];
+        foreach ($progress->results as $game => $levels) {
+            $entries = [];
+            foreach ($levels as $level => $result) {
+                $entries[$level] = [$result['bestMs'], $result['completedAt']->getTimestamp()];
+            }
+            // (object): keeps the levels a JSON object, also when the only key is 0 (tafels 2 tot 10).
+            $results[$game] = (object) $entries;
         }
 
-        // (object): keeps "r" a JSON object, also when the only key is 0 (tafels 2 tot 10).
         $payload = self::base64UrlEncode(json_encode(['v' => self::VERSION, 'r' => (object) $results], \JSON_THROW_ON_ERROR));
 
         return $payload.'.'.$this->sign($payload);
@@ -91,29 +97,45 @@ final readonly class GuestProgressCookie
 
         $json = base64_decode(strtr($parts[0], '-_', '+/'), true);
         try {
-            $data = false === $json ? null : json_decode($json, true, 4, \JSON_THROW_ON_ERROR);
+            $data = false === $json ? null : json_decode($json, true, 5, \JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             return null;
         }
 
-        if (!\is_array($data) || self::VERSION !== ($data['v'] ?? null) || !\is_array($data['r'] ?? null)) {
+        if (!\is_array($data) || !\is_array($data['r'] ?? null)) {
+            return null;
+        }
+
+        $results = match ($data['v'] ?? null) {
+            self::VERSION => $data['r'],
+            self::VERSION_TAFELS_ONLY => [Game::Tafels->value => $data['r']],
+            default => null,
+        };
+        if (null === $results) {
             return null;
         }
 
         $now = new \DateTimeImmutable();
         $progress = new GuestProgress();
-        foreach ($data['r'] as $table => $result) {
-            // Signed by us, so a bad entry can only come from an older version of the rules: skip it.
-            if (!\is_int($table) || !Tafels::isKnown($table) || !\is_array($result) || 2 !== \count($result)) {
+        foreach ($results as $gameValue => $levels) {
+            $game = \is_string($gameValue) ? Game::tryFrom($gameValue) : null;
+            if (null === $game || !\is_array($levels)) {
                 continue;
             }
 
-            [$durationMs, $completedAt] = [$result[0] ?? null, $result[1] ?? null];
-            if (!\is_int($durationMs) || $durationMs < 1 || $durationMs > TafelsResultInput::MAX_DURATION_MS || !\is_int($completedAt) || $completedAt < 0) {
-                continue;
-            }
+            foreach ($levels as $level => $result) {
+                // Signed by us, so a bad entry can only come from an older version of the rules: skip it.
+                if (!\is_int($level) || !$game->isKnownLevel($level) || !\is_array($result) || 2 !== \count($result)) {
+                    continue;
+                }
 
-            $progress = $progress->withResult($table, $durationMs, min($now, $now->setTimestamp($completedAt)));
+                [$durationMs, $completedAt] = [$result[0] ?? null, $result[1] ?? null];
+                if (!\is_int($durationMs) || $durationMs < 1 || $durationMs > RoundResultInput::MAX_DURATION_MS || !\is_int($completedAt) || $completedAt < 0) {
+                    continue;
+                }
+
+                $progress = $progress->withResult($game, $level, $durationMs, min($now, $now->setTimestamp($completedAt)));
+            }
         }
 
         return $progress;

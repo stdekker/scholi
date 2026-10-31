@@ -20,8 +20,8 @@ final class Tafels
     public const int MAX_TABLE = 12;
     /** Route requirement matching MIN_TABLE..MAX_TABLE. */
     public const string TABLE_PATTERN = '[1-9]|1[0-2]';
-    public const int TIME_LIMIT_MS = 60_000;
-    public const int ALL_TIME_LIMIT_MS = 120_000;
+    public const int TIME_LIMIT_MS = RoundTime::ONE_MINUTE_MS;
+    public const int ALL_TIME_LIMIT_MS = RoundTime::TWO_MINUTES_MS;
     /** "Geoefende tafels" needs this many finished tables to make 20 different sums. */
     public const int MIN_PRACTISED_TABLES = 2;
 
@@ -52,27 +52,12 @@ final class Tafels
     /**
      * The tables with at least one finished round, for "geoefende tafels".
      *
-     * @param array<int, TableProgress> $progress keyed by table number
+     * @param array<int, LevelProgress> $progress keyed by table number
      *
      * @return list<int>
      */
     public static function practisedTables(array $progress): array
     {
         return array_values(array_filter(self::tables(), static fn (int $table): bool => isset($progress[$table])));
-    }
-
-    public static function isPassed(int $table, int $durationMs): bool
-    {
-        return $durationMs <= self::timeLimitMs($table);
-    }
-
-    /**
-     * Formats milliseconds as m:ss, rounding up (mirrors formatTime() in assets/games/rekenen/tafels.js).
-     */
-    public static function formatTime(int $ms): string
-    {
-        $seconds = (int) ceil(max(0, $ms) / 1000);
-
-        return \sprintf('%d:%02d', intdiv($seconds, 60), $seconds % 60);
     }
 }

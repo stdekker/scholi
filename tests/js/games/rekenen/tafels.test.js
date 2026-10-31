@@ -1,323 +1,93 @@
 import { describe, expect, it } from 'vitest';
+import { ALL_TABLES_COUNT, tafelsSums } from '../../../../assets/games/rekenen/tafels.js';
 import {
-    ALL_TABLES_COUNT,
-    appendDigit,
-    checkAnswer,
     createRound,
-    findTask,
-    format,
-    frozenTasks,
-    MAX_ATTEMPTS,
-    registerWrongAnswer,
-    formatTime,
     isPassed,
     isRoundComplete,
-    isTimeUp,
-    remainingTasks,
-    removeLastDigit,
-    roundDuration,
     solveTask,
     startTimer,
-    TIME_LIMIT_MS,
-    timeLeft,
-} from '../../../../assets/games/rekenen/tafels.js';
+} from '../../../../assets/games/shared/round.js';
 
-describe('createRound', () => {
-    it('creates the ten sums of the table', () => {
-        const round = createRound([6]);
+describe('tafelsSums', () => {
+    it('gives the ten sums of the table', () => {
+        const sums = tafelsSums([6]);
 
-        expect(round.tables).toEqual([6]);
-        expect(round.tasks).toHaveLength(10);
+        expect(sums).toHaveLength(10);
 
-        const multipliers = round.tasks.map((task) => task.multiplier).toSorted((a, b) => a - b);
+        const multipliers = sums.map((sum) => sum.left).toSorted((a, b) => a - b);
         expect(multipliers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-        for (const task of round.tasks) {
-            expect(task.table).toBe(6);
-            expect(task.answer).toBe(task.multiplier * 6);
-            expect(task.solved).toBe(false);
+        for (const sum of sums) {
+            expect(sum).toMatchObject({ operator: 'keer', right: 6 });
         }
     });
 
     it('shuffles with the injected random source', () => {
-        const order = (random) => createRound([2], random).tasks.map((task) => task.multiplier);
+        const order = (random) => tafelsSums([2], random).map((sum) => sum.left);
 
         expect(order(() => 0.9999)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
         expect(order(() => 0)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 1]);
     });
 
-    it('gives every task a unique id', () => {
-        const ids = createRound([7]).tasks.map((task) => task.id);
-
-        expect(new Set(ids).size).toBe(10);
-    });
-
     it.each([-1, 0, 13, 2.5, Number.NaN])('rejects table %s', (table) => {
-        expect(() => createRound([table])).toThrow(RangeError);
-        expect(() => createRound([2, table])).toThrow(RangeError);
+        expect(() => tafelsSums([table])).toThrow(RangeError);
+        expect(() => tafelsSums([2, table])).toThrow(RangeError);
     });
 
     it('rejects no tables and duplicate tables', () => {
-        expect(() => createRound([])).toThrow(RangeError);
-        expect(() => createRound([3, 3])).toThrow(RangeError);
+        expect(() => tafelsSums([])).toThrow(RangeError);
+        expect(() => tafelsSums([3, 3])).toThrow(RangeError);
     });
 
     it.each([1, 12])('accepts table %s', (table) => {
-        expect(createRound([table]).tasks).toHaveLength(10);
+        expect(tafelsSums([table])).toHaveLength(10);
     });
 });
 
-describe('createRound for alle tafels', () => {
+describe('tafelsSums for alle tafels', () => {
     const twoToTen = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 
     it('picks twenty different sums from the given tables', () => {
-        const round = createRound(twoToTen);
+        const sums = tafelsSums(twoToTen);
 
         expect(ALL_TABLES_COUNT).toBe(20);
-        expect(round.tables).toEqual(twoToTen);
-        expect(round.tasks).toHaveLength(20);
+        expect(sums).toHaveLength(20);
+        expect(new Set(sums.map((sum) => `${sum.left}x${sum.right}`)).size).toBe(20);
 
-        const keys = round.tasks.map((task) => `${task.multiplier}x${task.table}`);
-        expect(new Set(keys).size).toBe(20);
-        expect(new Set(round.tasks.map((task) => task.id)).size).toBe(20);
-
-        for (const task of round.tasks) {
-            expect(task.table).toBeGreaterThanOrEqual(2);
-            expect(task.table).toBeLessThanOrEqual(10);
-            expect(task.multiplier).toBeGreaterThanOrEqual(1);
-            expect(task.multiplier).toBeLessThanOrEqual(10);
-            expect(task.answer).toBe(task.multiplier * task.table);
-            expect(task.solved).toBe(false);
+        for (const sum of sums) {
+            expect(sum.operator).toBe('keer');
+            expect(sum.right).toBeGreaterThanOrEqual(2);
+            expect(sum.right).toBeLessThanOrEqual(10);
+            expect(sum.left).toBeGreaterThanOrEqual(1);
+            expect(sum.left).toBeLessThanOrEqual(10);
         }
     });
 
     it('picks only from the given tables', () => {
-        const round = createRound([3, 7]);
+        const sums = tafelsSums([3, 7]);
 
-        expect(round.tasks).toHaveLength(20);
-        expect(new Set(round.tasks.map((task) => task.table))).toEqual(new Set([3, 7]));
+        expect(sums).toHaveLength(20);
+        expect(new Set(sums.map((sum) => sum.right))).toEqual(new Set([3, 7]));
     });
 
     it('is deterministic for the injected random source', () => {
-        const sums = () =>
-            createRound(twoToTen, () => 0.9999).tasks.map((t) => `${t.multiplier}x${t.table}`);
+        const sums = tafelsSums(twoToTen, () => 0.9999).map((sum) => `${sum.left}x${sum.right}`);
 
         // random() close to 1 keeps the order: the first twenty sums (tafel van 2 and 3).
-        expect(sums()).toEqual([
+        expect(sums).toEqual([
             ...Array.from({ length: 10 }, (_, i) => `${i + 1}x2`),
             ...Array.from({ length: 10 }, (_, i) => `${i + 1}x3`),
         ]);
     });
 
-    it('can be completed and judged like a single table', () => {
-        let round = startTimer(createRound(twoToTen, Math.random, 120_000), 0);
+    it('makes a round that can be completed and judged like a single table', () => {
+        let round = startTimer(createRound(tafelsSums(twoToTen), 120_000), 0);
         for (const task of round.tasks) {
+            expect(task.answer).toBe(task.left * task.right);
             round = solveTask(round, task.id, 119_000);
         }
 
         expect(isRoundComplete(round)).toBe(true);
         expect(isPassed(round)).toBe(true);
-    });
-});
-
-describe('checkAnswer', () => {
-    const task = { id: 2, multiplier: 2, table: 6, answer: 12, solved: false };
-
-    it('accepts the right answer', () => {
-        expect(checkAnswer(task, '12')).toBe(true);
-        expect(checkAnswer(task, '012')).toBe(true);
-    });
-
-    it.each(['', '13', '1a', '-12', ' 12', '12.0'])('rejects %j', (input) => {
-        expect(checkAnswer(task, input)).toBe(false);
-    });
-});
-
-describe('round progress', () => {
-    it('tracks solved tasks without modifying the original round', () => {
-        const round = createRound([3]);
-        const solved = solveTask(round, 4, 1000);
-
-        expect(findTask(solved, 4)?.solved).toBe(true);
-        expect(findTask(round, 4)?.solved).toBe(false);
-        expect(remainingTasks(solved)).toHaveLength(9);
-        expect(isRoundComplete(solved)).toBe(false);
-    });
-
-    it('is complete when every task is solved', () => {
-        let round = createRound([5]);
-        for (const task of round.tasks) {
-            round = solveTask(round, task.id, 1000);
-        }
-
-        expect(remainingTasks(round)).toHaveLength(0);
-        expect(isRoundComplete(round)).toBe(true);
-    });
-});
-
-describe('timer', () => {
-    const solveAll = (round, now) =>
-        round.tasks.reduce((current, task) => solveTask(current, task.id, now), round);
-
-    it('has the full minute before it starts', () => {
-        const round = createRound([4]);
-
-        expect(TIME_LIMIT_MS).toBe(60_000);
-        expect(round.startedAt).toBeNull();
-        expect(timeLeft(round, 999_999)).toBe(TIME_LIMIT_MS);
-        expect(isTimeUp(round, 999_999)).toBe(false);
-    });
-
-    it('counts down from the first start only', () => {
-        const round = startTimer(startTimer(createRound([4]), 1_000), 5_000);
-
-        expect(round.startedAt).toBe(1_000);
-        expect(timeLeft(round, 21_000)).toBe(40_000);
-        expect(isTimeUp(round, 60_999)).toBe(false);
-        expect(isTimeUp(round, 61_000)).toBe(true);
-        expect(timeLeft(round, 90_000)).toBe(0);
-    });
-
-    it('passes when everything is solved within the minute', () => {
-        const round = solveAll(startTimer(createRound([7]), 1_000), 61_000);
-
-        expect(round.finishedAt).toBe(61_000);
-        expect(isPassed(round)).toBe(true);
-        expect(timeLeft(round, 120_000)).toBe(0);
-    });
-
-    it('does not pass when finished after the minute, but the round is complete', () => {
-        const round = solveAll(startTimer(createRound([7]), 1_000), 61_001);
-
-        expect(isRoundComplete(round)).toBe(true);
-        expect(isPassed(round)).toBe(false);
-    });
-
-    it('stops the clock when the round is finished', () => {
-        const round = solveAll(startTimer(createRound([7]), 0), 45_000);
-
-        expect(timeLeft(round, 200_000)).toBe(15_000);
-    });
-
-    it('only records finishedAt for the last task', () => {
-        const round = solveTask(startTimer(createRound([7]), 0), 1, 5_000);
-
-        expect(round.finishedAt).toBeNull();
-        expect(isPassed(round)).toBe(false);
-    });
-
-    it('uses a custom time limit', () => {
-        const round = startTimer(createRound([4], Math.random, 30_000), 0);
-
-        expect(round.timeLimitMs).toBe(30_000);
-        expect(timeLeft(round, 10_000)).toBe(20_000);
-        expect(isPassed(solveAll(round, 30_000))).toBe(true);
-        expect(isPassed(solveAll(round, 30_001))).toBe(false);
-    });
-
-    it('reports the round duration once finished', () => {
-        const started = startTimer(createRound([4]), 2_000);
-
-        expect(roundDuration(createRound([4]))).toBeNull();
-        expect(roundDuration(started)).toBeNull();
-        expect(roundDuration(solveAll(started, 47_500))).toBe(45_500);
-    });
-
-    it.each([
-        [60_000, '1:00'],
-        [59_001, '1:00'],
-        [59_000, '0:59'],
-        [9_500, '0:10'],
-        [1, '0:01'],
-        [0, '0:00'],
-        [-500, '0:00'],
-    ])('formats %i ms as %s', (ms, expected) => {
-        expect(formatTime(ms)).toBe(expected);
-    });
-});
-
-describe('freezing after wrong answers', () => {
-    const wrong = (round, id, times, now = 1_000) =>
-        Array.from({ length: times }).reduce((r) => registerWrongAnswer(r, id, now), round);
-
-    it('starts with no wrong attempts', () => {
-        expect(createRound([4]).tasks.every((t) => t.wrongAttempts === 0 && !t.frozen)).toBe(true);
-    });
-
-    it('freezes a task on the third wrong answer', () => {
-        const round = startTimer(createRound([4]), 0);
-
-        expect(MAX_ATTEMPTS).toBe(3);
-        expect(findTask(wrong(round, 1, 2), 1)).toMatchObject({ wrongAttempts: 2, frozen: false });
-        expect(findTask(wrong(round, 1, 3), 1)).toMatchObject({ wrongAttempts: 3, frozen: true });
-        expect(frozenTasks(wrong(round, 1, 3))).toHaveLength(1);
-        expect(remainingTasks(wrong(round, 1, 3))).toHaveLength(9);
-    });
-
-    it('ignores further answers on frozen or solved tasks', () => {
-        const round = startTimer(createRound([4]), 0);
-        const frozen = wrong(round, 1, 5);
-
-        expect(findTask(frozen, 1)?.wrongAttempts).toBe(3);
-        expect(findTask(solveTask(frozen, 1, 2_000), 1)?.solved).toBe(false);
-        expect(findTask(wrong(solveTask(round, 2, 1_000), 2, 3), 2)?.frozen).toBe(false);
-    });
-
-    it('completes the round when every task is solved or frozen, but does not pass', () => {
-        let round = startTimer(createRound([4]), 0);
-        const [first, ...rest] = round.tasks;
-        round = wrong(round, first.id, 3, 5_000);
-        for (const task of rest) {
-            round = solveTask(round, task.id, 10_000);
-        }
-
-        expect(isRoundComplete(round)).toBe(true);
-        expect(round.finishedAt).toBe(10_000);
-        expect(isPassed(round)).toBe(false);
-    });
-
-    it('ends as soon as the last open task freezes, even within the time', () => {
-        let round = startTimer(createRound([4]), 0);
-        for (const task of round.tasks) {
-            round = wrong(round, task.id, 3, 20_000);
-        }
-
-        expect(isRoundComplete(round)).toBe(true);
-        expect(round.finishedAt).toBe(20_000);
-        expect(frozenTasks(round)).toHaveLength(10);
-        expect(isPassed(round)).toBe(false);
-    });
-});
-
-describe('keypad input', () => {
-    it('appends digits up to the maximum length', () => {
-        expect(appendDigit('', '1')).toBe('1');
-        expect(appendDigit('10', '0')).toBe('100');
-        expect(appendDigit('100', '5')).toBe('100');
-        expect(appendDigit('1', '2', 1)).toBe('1');
-    });
-
-    it('ignores anything that is not a single digit', () => {
-        expect(appendDigit('1', 'a')).toBe('1');
-        expect(appendDigit('1', '-')).toBe('1');
-        expect(appendDigit('1', '12')).toBe('1');
-    });
-
-    it('removes the last digit', () => {
-        expect(removeLastDigit('12')).toBe('1');
-        expect(removeLastDigit('')).toBe('');
-    });
-});
-
-describe('format', () => {
-    it('fills placeholders', () => {
-        expect(format('Nog %count% bubbels', { count: 7 })).toBe('Nog 7 bubbels');
-        expect(
-            format('%multiplier% × %table% = %answer%', { multiplier: 2, table: 6, answer: 12 }),
-        ).toBe('2 × 6 = 12');
-    });
-
-    it('leaves unknown placeholders untouched', () => {
-        expect(format('Hallo %name%', {})).toBe('Hallo %name%');
     });
 });

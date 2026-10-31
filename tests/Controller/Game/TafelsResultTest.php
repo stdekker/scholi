@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Game;
 
-use App\Entity\TafelsResult;
+use App\Entity\GameResult;
+use App\Game\Game;
 use App\Game\TafelsMix;
 use App\Player\GuestProgress;
 use App\Tests\Support\PlayerTestTrait;
@@ -39,9 +40,9 @@ final class TafelsResultTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertJsonStringEqualsJsonString(json_encode(['passed' => $passed], \JSON_THROW_ON_ERROR), (string) $client->getResponse()->getContent());
 
-        $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player]);
+        $results = $this->entityManager()->getRepository(GameResult::class)->findBy(['player' => $player]);
         self::assertCount(1, $results);
-        self::assertSame(6, $results[0]->getTableNumber());
+        self::assertSame(6, $results[0]->getLevel());
         self::assertSame($durationMs, $results[0]->getDurationMs());
         self::assertSame($passed, $results[0]->isPassed());
     }
@@ -69,9 +70,9 @@ final class TafelsResultTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(['passed' => $passed], json_decode((string) $client->getResponse()->getContent(), true));
-        $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player]);
+        $results = $this->entityManager()->getRepository(GameResult::class)->findBy(['player' => $player]);
         self::assertCount(1, $results);
-        self::assertSame($mix->value, $results[0]->getTableNumber());
+        self::assertSame($mix->value, $results[0]->getLevel());
         self::assertSame($passed, $results[0]->isPassed());
     }
 
@@ -101,13 +102,13 @@ final class TafelsResultTest extends WebTestCase
         self::assertSame('/', $cookie->getPath());
         self::assertGreaterThan(strtotime('+399 days'), $cookie->getExpiresTime());
         self::assertSame([6 => 45_000], $this->bestTimes((string) $cookie->getValue()));
-        self::assertSame(0, $this->entityManager()->getRepository(TafelsResult::class)->count(), 'Nothing is stored on the server for guests');
+        self::assertSame(0, $this->entityManager()->getRepository(GameResult::class)->count(), 'Nothing is stored on the server for guests');
     }
 
     public function testGuestCookieKeepsTheBestTimePerTable(): void
     {
         $client = static::createClient();
-        $this->setGuestProgress($client, (new GuestProgress())->withResult(6, 50_000, new \DateTimeImmutable()));
+        $this->setGuestProgress($client, (new GuestProgress())->withResult(Game::Tafels, 6, 50_000, new \DateTimeImmutable()));
 
         $this->postJson($client, '/rekenen/tafel/6/resultaat', ['durationMs' => 70_000]);
         self::assertJsonStringEqualsJsonString('{"passed":false}', (string) $client->getResponse()->getContent());
@@ -145,10 +146,10 @@ final class TafelsResultTest extends WebTestCase
     {
         $client = static::createClient();
         $this->setGuestProgress($client, (new GuestProgress())
-            ->withResult(6, 48_200, new \DateTimeImmutable())
-            ->withResult(TafelsMix::TwoToTen->value, 125_000, new \DateTimeImmutable()));
+            ->withResult(Game::Tafels, 6, 48_200, new \DateTimeImmutable())
+            ->withResult(Game::Tafels, TafelsMix::TwoToTen->value, 125_000, new \DateTimeImmutable()));
 
-        $client->request('GET', '/rekenen');
+        $client->request('GET', '/rekenen/tafels');
 
         self::assertSelectorTextContains('.table-picker li:nth-child(6) .progress-badge--passed', '0:49');
         self::assertSelectorCount(1, '.progress-badge');
@@ -163,13 +164,13 @@ final class TafelsResultTest extends WebTestCase
     public function testGuestPickerIgnoresAndClearsATamperedCookie(): void
     {
         $client = static::createClient();
-        $value = $this->guestCookie()->encode((new GuestProgress())->withResult(6, 90_000, new \DateTimeImmutable()));
+        $value = $this->guestCookie()->encode((new GuestProgress())->withResult(Game::Tafels, 6, 90_000, new \DateTimeImmutable()));
         [$payload, $mac] = explode('.', $value);
         // Same signature, payload changed to claim a faster time.
         $forged = str_replace('90000', '10000', (string) base64_decode(strtr($payload, '-_', '+/'), true));
         $this->setGuestCookie($client, rtrim(strtr(base64_encode($forged), '+/', '-_'), '=').'.'.$mac);
 
-        $client->request('GET', '/rekenen');
+        $client->request('GET', '/rekenen/tafels');
 
         self::assertSelectorCount(0, '.progress-badge');
         self::assertTrue((bool) $this->responseGuestCookie($client)?->isCleared());
@@ -180,9 +181,9 @@ final class TafelsResultTest extends WebTestCase
         $client = static::createClient();
         [, $token] = $this->createPlayer();
         $this->logIn($client, $token);
-        $this->setGuestProgress($client, (new GuestProgress())->withResult(6, 48_200, new \DateTimeImmutable()));
+        $this->setGuestProgress($client, (new GuestProgress())->withResult(Game::Tafels, 6, 48_200, new \DateTimeImmutable()));
 
-        $client->request('GET', '/rekenen');
+        $client->request('GET', '/rekenen/tafels');
 
         self::assertSelectorCount(0, '.progress-badge');
         self::assertNull($this->responseGuestCookie($client));
@@ -244,7 +245,7 @@ final class TafelsResultTest extends WebTestCase
         $this->addResult($player, 7, 75_000);
         $this->logIn($client, $token);
 
-        $client->request('GET', '/rekenen');
+        $client->request('GET', '/rekenen/tafels');
 
         self::assertSelectorTextContains('.table-picker li:nth-child(6) .progress-badge--passed', '0:49');
         self::assertSelectorTextContains('.table-picker li:nth-child(7) .progress-badge--done', '1:15');
@@ -259,7 +260,7 @@ final class TafelsResultTest extends WebTestCase
         $this->addResult($player, TafelsMix::TwoToTwelve->value, 130_000);
         $this->logIn($client, $token);
 
-        $client->request('GET', '/rekenen');
+        $client->request('GET', '/rekenen/tafels');
         self::assertSelectorCount(0, '.progress-badge');
 
         $client->request('GET', '/rekenen/alle-tafels');
@@ -310,7 +311,7 @@ final class TafelsResultTest extends WebTestCase
         $progress = $this->guestCookie()->decode($cookieValue);
         self::assertNotNull($progress);
 
-        return array_map(static fn (array $result): int => $result['bestMs'], $progress->results);
+        return array_map(static fn (array $result): int => $result['bestMs'], $progress->results['tafels'] ?? []);
     }
 
     /**

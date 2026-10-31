@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Entity\GameResult;
 use App\Entity\Player;
-use App\Entity\TafelsResult;
+use App\Game\Game;
 use App\Game\TafelsMix;
 use App\Player\FunNameGenerator;
 use App\Player\GuestProgress;
@@ -66,9 +67,10 @@ final class PlayerControllerTest extends WebTestCase
         $client = static::createClient();
         $playedAt = new \DateTimeImmutable('2026-10-20 14:30:00');
         $this->setGuestProgress($client, (new GuestProgress())
-            ->withResult(6, 48_200, $playedAt)
-            ->withResult(7, 75_000, $playedAt)
-            ->withResult(TafelsMix::TwoToTen->value, 110_000, $playedAt));
+            ->withResult(Game::Tafels, 6, 48_200, $playedAt)
+            ->withResult(Game::Tafels, 7, 75_000, $playedAt)
+            ->withResult(Game::Tafels, TafelsMix::TwoToTen->value, 110_000, $playedAt)
+            ->withResult(Game::ErbijEraf, 32, 50_000, $playedAt));
 
         $client->request('GET', '/speler/nieuw');
         self::assertSelectorTextContains('.notice--success', 'gaat mee naar je nieuwe speler');
@@ -81,15 +83,15 @@ final class PlayerControllerTest extends WebTestCase
 
         $player = $this->entityManager()->getRepository(Player::class)->findOneBy(['name' => 'Snelle Vos']);
         self::assertNotNull($player);
-        $results = $this->entityManager()->getRepository(TafelsResult::class)->findBy(['player' => $player], ['tableNumber' => 'ASC']);
+        $results = $this->entityManager()->getRepository(GameResult::class)->findBy(['player' => $player], ['level' => 'ASC']);
         self::assertSame(
-            [[TafelsMix::TwoToTen->value, 110_000, true], [6, 48_200, true], [7, 75_000, false]],
-            array_map(static fn (TafelsResult $result): array => [$result->getTableNumber(), $result->getDurationMs(), $result->isPassed()], $results),
+            [['tafels', TafelsMix::TwoToTen->value, 110_000, true], ['tafels', 6, 48_200, true], ['tafels', 7, 75_000, false], ['erbij-eraf', 32, 50_000, true]],
+            array_map(static fn (GameResult $result): array => [$result->getGame()->value, $result->getLevel(), $result->getDurationMs(), $result->isPassed()], $results),
         );
         self::assertEquals($playedAt, $results[1]->getCompletedAt());
 
         $client->followRedirect();
-        self::assertSelectorCount(3, '.progress-badge');
+        self::assertSelectorCount(4, '.progress-badge');
     }
 
     public function testTamperedGuestProgressIsNotTransferred(): void
@@ -105,20 +107,20 @@ final class PlayerControllerTest extends WebTestCase
         self::assertTrue((bool) $this->responseGuestCookie($client)?->isCleared());
         $player = $this->entityManager()->getRepository(Player::class)->findOneBy(['name' => 'Valse Vos']);
         self::assertNotNull($player);
-        self::assertSame(0, $this->entityManager()->getRepository(TafelsResult::class)->count(['player' => $player]));
+        self::assertSame(0, $this->entityManager()->getRepository(GameResult::class)->count(['player' => $player]));
     }
 
     public function testPlayerLinkLeavesGuestProgressAlone(): void
     {
         $client = static::createClient();
         [$player, $token] = $this->createPlayer('Dappere Draak');
-        $this->setGuestProgress($client, (new GuestProgress())->withResult(6, 48_200, new \DateTimeImmutable()));
+        $this->setGuestProgress($client, (new GuestProgress())->withResult(Game::Tafels, 6, 48_200, new \DateTimeImmutable()));
 
         $client->request('GET', '/speler/'.$token);
 
         self::assertResponseRedirects('/speler');
         self::assertNull($this->responseGuestCookie($client));
-        self::assertSame(0, $this->entityManager()->getRepository(TafelsResult::class)->count(['player' => $player]));
+        self::assertSame(0, $this->entityManager()->getRepository(GameResult::class)->count(['player' => $player]));
     }
 
     public function testSuggestedNameAndEmojiAreStored(): void
@@ -279,6 +281,26 @@ final class PlayerControllerTest extends WebTestCase
         self::assertSelectorTextContains('.progress-list__item:nth-child(6) .progress-badge--passed', 'Beste tijd 0:45');
         self::assertSelectorTextContains('.progress-list__item:nth-child(7) .progress-badge--done', 'Beste tijd 1:15');
         self::assertSelectorTextContains('.progress-list__item:nth-child(1)', 'Nog niet geoefend');
+    }
+
+    public function testPlayerPageShowsErbijErafProgress(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $this->addResult($player, 32, 45_000, Game::ErbijEraf);   // tot 20 met brug, eraf
+        $this->addResult($player, 63, 130_000, Game::ErbijEraf);  // tot 100 met brug, door elkaar
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/speler');
+
+        self::assertSelectorCount(6, '.progress-table tbody tr');
+        self::assertSelectorTextContains('.progress-table thead', 'Erbij');
+        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(3) th', 'Tot 20 met brug');
+        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(3) td:nth-of-type(2) .progress-badge--passed', 'Binnen een minuut! Beste tijd 0:45');
+        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(6) td:nth-of-type(3) .progress-badge--done', 'Gehaald. Beste tijd 2:10');
+        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(1) td:nth-of-type(1)', 'Nog niet geoefend');
+        self::assertSelectorCount(2, '.progress-table .progress-badge');
+        self::assertSelectorExists('a[href="/rekenen/erbij-eraf"]');
     }
 
     public function testLogoutForgetsPlayerInThisBrowser(): void

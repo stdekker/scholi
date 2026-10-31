@@ -64,21 +64,25 @@ Tests use the `db_test` database, which a `post-start` hook in `.ddev/config.yam
 
 ```
 src/Controller/HomeController.php           # / – subject overview
-src/Controller/Game/<Subject>Controller.php  # one controller per subject, e.g. RekenenController (/rekenen/…)
+src/Controller/Game/<Subject>Controller.php  # a subject's game list, e.g. RekenenController (/rekenen)
+src/Controller/Game/<Game>Controller.php     # one controller per game, e.g. TafelsController, ErbijErafController
+src/Controller/Game/AbstractBubbleGameController.php  # shared: progress, storing a round, layout variables
 src/Controller/PlayerController.php          # /speler, /speler/nieuw, /speler/{token}
-src/Entity/, src/Repository/                 # Doctrine: Player, TafelsResult
-src/Game/                                    # server-side game rules (Tafels: tables, TIME_LIMIT_MS), progress, input DTOs
+src/Entity/, src/Repository/                 # Doctrine: Player, GameResult
+src/Game/                                    # server-side game rules (Game enum, Tafels, TafelsMix, ErbijEraf*), LevelProgress, RoundTime, input DTO
 src/Security/                                # player link token, cookie, authenticator, signed guest progress cookie
 src/Player/                                  # FunNameGenerator, GuestProgress
 src/Migrations/                              # Doctrine migrations
 templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body), header, footer with the "Meer over Scholi" popover
 templates/home/                              # homepage
+templates/game/bubble_game.html.twig         # shared layout of the bubble games (dialog, bubbles, keypad, completion panel)
 templates/game/<subject>/                    # subject + game pages, e.g. game/rekenen/tafel.html.twig
 templates/player/                            # registration, player page, progress badge
 assets/app.js                                # AssetMapper entrypoint
 assets/controllers/<game>_controller.js      # Stimulus controllers: DOM wiring only, e.g. tafels_controller.js
+assets/controllers/bubble_game.js            # base class of the bubble games' controllers (not registered itself)
 assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js
-assets/games/shared/                         # pure helpers shared by games (random.js: randomInt, shuffle)
+assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js
 assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
 translations/messages.nl.yaml                # all user-facing text
 tests/Controller/, tests/Unit/               # PHPUnit functional and unit tests (tests/Support: helpers)
@@ -90,30 +94,63 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 ## Games
 
-### Rekenen › Tafels (bubbels)
+`/rekenen` lists the rekenen games: **Tafels** (`/rekenen/tafels`) and **Erbij en eraf** (`/rekenen/erbij-eraf`).
 
-- `/rekenen` lists the tables 1–12 plus "Alle tafels" (a same-size tile centred under the grid). `/rekenen/tafel/{1..12}` is the game for one table; other values give a 404.
-- **Alle tafels** (`/rekenen/alle-tafels`) is a second menu of mixes. Each mix is 20 different sums (`ALL_TABLES_COUNT`) picked at random from all sums of its tables, with a **2-minute** clock (`Tafels::ALL_TIME_LIMIT_MS`). Mixes use the same template and controller as a single table; `createRound()` takes the list of tables.
-  - **Tafels 2 tot 5 / 2 tot 10 / 2 tot 12** (`/rekenen/alle-tafels/2-tot-{5,10,12}`, `App\Game\TafelsMix`). Their results are stored under the enum's value as table number: -5, 0 and -12. "2 tot 10" keeps 0, which was the only "alle tafels" before the mixes, so older results and guest cookies stay valid. Each mix has its own badge on the menu and its own row on the player page.
-  - **Geoefende tafels** (`/rekenen/alle-tafels/geoefend`): every table (1–12) with a finished round (✓ or ⭐), from the database or the guest cookie. It needs at least 2 such tables (`Tafels::MIN_PRACTISED_TABLES`). Until then the tile isn't a link, and the URL redirects to the menu. Its rounds are never saved, because the tables change per pupil.
-- A round has ten bubbles, "multiplier × table" for multipliers 1–10 (Dutch notation: `2 × 6` belongs to *de tafel van 6*), in random order. The bubbles bob gently, and the bobbing is off under `prefers-reduced-motion`.
+### Bubble games (shared by tafels and erbij en eraf)
+
+Each game only decides **which sums** a round asks and its texts. Everything else is shared:
+- the round rules: `assets/games/shared/round.js`
+- the DOM wiring: `assets/controllers/bubble_game.js`, which the game's controller extends with `createSums()`
+- the markup: `templates/game/bubble_game.html.twig`, which the game page extends and gives `controller`, `values` and its texts
+- the server side: `AbstractBubbleGameController`, `Game`, `GameResult`, `LevelProgress`
+- the texts: `game.bubbles.*`
+
+- A task is a sum `{left, operator: plus|min|keer, right}`. It is shown with `+`, `−` (U+2212) or `×` (`formatSum()`), and screen readers get "%left% plus/min/keer %right%". The bubbles bob gently, and the bobbing is off under `prefers-reduced-motion`.
 - Clicking a bubble enlarges it and shows an answer field plus an on-screen keypad (0–9, ⌫, OK). The physical keyboard also works: digits, Backspace, Enter to check, Escape to close. Typing a digit while no bubble is open opens the focused bubble, or else the first remaining one, and enters that digit. If no bubble is open for 3 seconds (`AUTO_OPEN_DELAY_MS`, after "Start!", a pop, a freeze or Escape), the focused bubble, or else the first remaining one, opens by itself.
 - A correct answer pops the bubble and removes it. A wrong answer gives a friendly "try again" with a wiggle. After **3 wrong answers** (`MAX_ATTEMPTS`) the bubble **freezes**: it shrinks, turns grey, shows a ❄️ and its sum without the answer, and can't be opened any more. When the round is over, frozen bubbles show the correct answer (`bubble--revealed`; the answer is only put in the DOM then). There is no score.
 - The round ends when every bubble is popped or frozen, whether or not the time has run out. It only counts as passed when nothing froze. With frozen bubbles the panel says "Je hebt X van de Y bubbels geknapt. Oefen nog even en probeer het opnieuw!", and the round is **not saved**, so badges only reflect complete rounds.
-- **Ready dialog:** every round (also after "Nog een keer") opens with a modal `<dialog>` showing the time limit and "Ben je er klaar voor?". A small "← Terug" link goes back to the table picker (hidden once the countdown runs). The pupil presses "Ik ben er klaar voor!", sees a countdown of 3, 2, 1, "Start!" (`READY_COUNTDOWN_SECONDS`), and then the dialog closes. Escape can't close it. The bubble field stays empty until "Start!"; then the bubbles pop up one after another (`bubble--appearing`).
-- **Timer:** one minute (`TIME_LIMIT_MS`). It starts when the ready countdown ends and is shown as m:ss plus a shrinking bar. If it runs out, the pupil sees "De tijd is om! Maak de bubbels rustig af." and keeps playing.
-- When all ten bubbles are popped, a completion panel appears. Within the minute it says the pupil **passed** ("Super gedaan! … binnen een minuut geknapt!"). Otherwise it says "Alle bubbels zijn geknapt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and "Andere tafel".
-- Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
-- The time limit comes from the server (`App\Game\Tafels::timeLimitMs()` → `data-tafels-time-limit-value`), so the client's verdict and the stored result always agree.
-- **Saving:** the finished round is POSTed as JSON (`{durationMs}`) to `/rekenen/tafel/{table}/resultaat` (or `/rekenen/alle-tafels/{mix}/resultaat`), and the server decides `passed`.
-  - For a player, the result goes to the database (201).
+- **Ready dialog:** every round (also after "Nog een keer") opens with a modal `<dialog>` showing the time limit and "Ben je er klaar voor?". A small "← Terug" link goes back to the game's picker (hidden once the countdown runs). The pupil presses "Ik ben er klaar voor!", sees a countdown of 3, 2, 1, "Start!" (`READY_COUNTDOWN_SECONDS`), and then the dialog closes. Escape can't close it. The bubble field stays empty until "Start!"; then the bubbles pop up one after another (`bubble--appearing`).
+- **Timer:** it starts when the ready countdown ends and is shown as m:ss plus a shrinking bar. If it runs out, the pupil sees "De tijd is om! Maak de bubbels rustig af." and keeps playing. The limit comes from the server (`Game::timeLimitMs($level)` → `data-<game>-time-limit-value`), so the client's verdict and the stored result always agree.
+- When all bubbles are popped, a completion panel appears. Within the time it says the pupil **passed** ("Super gedaan! …"). Otherwise it says "Alle bubbels zijn geknapt. Iets sneller de volgende keer!". In both cases it offers "Nog een keer" (new round, clock reset) and a link back to the picker.
+- Translated strings with `%placeholders%` are passed as Stimulus values and filled in with `format()`.
+- **Saving:** the finished round is POSTed as JSON (`{durationMs}`) to the game's `…/resultaat` route, and the server decides `passed`.
+  - Each game stores its rounds per **level**, a number whose meaning belongs to the game (see below).
+  - For a player, the result goes to the database as a `GameResult` (`game`, `level`), with a 201.
   - For a guest, it goes into the **guest progress cookie** (200), and the panel says "Je resultaat is bewaard op deze computer" with a link to make a player.
-- **Progress:** the picker and the player page show each table's best result: ⭐ + best time when done within the minute, ✓ + best time when completed more slowly. Guests see the badges from their cookie on the picker.
+- **Progress:** the pickers and the player page show each level's best result: ⭐ + best time when done within the time, ✓ + best time when completed more slowly. Guests see the badges from their cookie on the pickers.
 - **Guest progress cookie** (`App\Security\GuestProgressCookie`, `App\Player\GuestProgress`):
-  - `scholi_guest`: HttpOnly, SameSite=Lax, 400 days. It holds only the best time and date per table, never `passed`.
-  - Signed with an HMAC (a key derived from `APP_SECRET`), so it only holds results the server accepted. A tampered or malformed cookie is ignored, and cleared on the picker.
+  - `scholi_guest`: HttpOnly, SameSite=Lax, 400 days. It holds only the best time and date per game and level, never `passed`.
+  - Version 2 is `{"v":2,"r":{"<game>":{"<level>":[ms, ts]}}}`. Version 1 (tafels only) is still read as tafels.
+  - Signed with an HMAC (a key derived from `APP_SECRET`), so it only holds results the server accepted. A tampered or malformed cookie is ignored, and cleared on the pickers.
   - Nothing about guests is stored on the server.
-- The game page sets `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
+- Game pages set `turbo-cache-control: no-cache`, and the controller's `connect()` rebuilds the board from scratch.
+
+### Rekenen › Tafels
+
+- `/rekenen/tafels` lists the tables 1–12 plus "Alle tafels" (a same-size tile centred under the grid). `/rekenen/tafel/{1..12}` is the game for one table; other values give a 404.
+- A round has ten bubbles, "multiplier × table" for multipliers 1–10 (Dutch notation: `2 × 6` belongs to *de tafel van 6*), in random order, with a **1-minute** clock (`Tafels::TIME_LIMIT_MS`). The level is the table number.
+- **Alle tafels** (`/rekenen/alle-tafels`) is a second menu of mixes. Each mix is 20 different sums (`ALL_TABLES_COUNT`) picked at random from all sums of its tables, with a **2-minute** clock (`Tafels::ALL_TIME_LIMIT_MS`). Mixes use the same template and controller as a single table; `tafelsSums()` takes the list of tables.
+  - **Tafels 2 tot 5 / 2 tot 10 / 2 tot 12** (`/rekenen/alle-tafels/2-tot-{5,10,12}`, `App\Game\TafelsMix`). Their results are stored under the enum's value as level: -5, 0 and -12. "2 tot 10" keeps 0, which was the only "alle tafels" before the mixes, so older results and guest cookies stay valid. Each mix has its own badge on the menu and its own row on the player page.
+  - **Geoefende tafels** (`/rekenen/alle-tafels/geoefend`): every table (1–12) with a finished round (✓ or ⭐), from the database or the guest cookie. It needs at least 2 such tables (`Tafels::MIN_PRACTISED_TABLES`). Until then the tile isn't a link, and the URL redirects to the menu. Its rounds are never saved, because the tables change per pupil.
+- Logic: `assets/games/rekenen/tafels.js`. Wiring: `assets/controllers/tafels_controller.js`. Server: `TafelsController`, `Tafels`, `TafelsMix`.
+
+### Rekenen › Erbij en eraf
+
+- `/rekenen/erbij-eraf` lists six levels (`ErbijErafLevel`, roughly groep 3 to 5). Each level has three tiles (`ErbijErafOperation`): **Erbij** (plussommen), **Eraf** (minsommen) and **Door elkaar** (5 + 5). Each tile has its own badge.
+- `/rekenen/erbij-eraf/{level}/{operation}` is the game, for example `/rekenen/erbij-eraf/tot-20-brug/eraf`. Unknown slugs give a 404.
+- A round has **ten** different sums, picked at random from every sum the level allows (`allSums()`/`pickSums()` in `assets/games/rekenen/erbij_eraf.js`). Terms are never 0, answers never negative and at most 100.
+
+| Level (slug) | Erbij, e.g. | Eraf, e.g. | Rule | Clock |
+|---|---|---|---|---|
+| Tot 10 (`tot-10`) | 3 + 4 | 9 − 5 | everything within 10 | 1 min |
+| Tot 20 zonder brug (`tot-20`) | 12 + 5 | 17 − 4 | 11–19 with a one-digit number, the units stay below ten | 1 min |
+| Tot 20 met brug (`tot-20-brug`) | 8 + 5 | 13 − 6 | across the ten | 1 min |
+| Tientallen tot 100 (`tientallen`) | 30 + 40 | 90 − 50 | only tens | 1 min |
+| Tot 100 zonder brug (`tot-100`) | 34 + 25 | 68 − 25 | above 20, the units don't cross the ten | **2 min** |
+| Tot 100 met brug (`tot-100-brug`) | 38 + 7 | 52 − 18 | above 20, the units cross the ten | **2 min** |
+
+- A round is stored as level `ErbijEraf::storedLevel()` = level × 10 + operation code (erbij 1, eraf 2, door elkaar 3), for example 32 = tot 20 met brug, eraf.
+- Logic: `assets/games/rekenen/erbij_eraf.js`. Wiring: `assets/controllers/erbij_eraf_controller.js`. Server: `ErbijErafController`, `ErbijEraf`, `ErbijErafLevel`, `ErbijErafOperation`.
 
 ## Players (accounts)
 
@@ -125,14 +162,14 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - The browser remembers the token in the `scholi_player` cookie (HttpOnly, SameSite=Lax, 400 days, refreshed on every visit). `PlayerCookieAuthenticator` logs the player in on each request; the `main` firewall is stateless and the app uses no session.
 - An unknown or invalid cookie never blocks anyone: the visitor continues as a guest and `PlayerCookieSubscriber` clears the cookie. Opening a valid link sets the cookie (switching player if needed); an unknown link gives a friendly 404.
 - "Uitloggen" (POST with CSRF) deletes the cookie, for shared school computers.
-- **Guest progress moves to the account on registration only**: `/speler/nieuw` turns each guest result into a `TafelsResult` (original date, `passed` recomputed) and clears the guest cookie. Opening an existing player link or logging out leaves the guest cookie alone, so on a shared computer a guest's stars never end up in another child's account.
+- **Guest progress moves to the account on registration only**: `/speler/nieuw` turns each guest result (of every game) into a `GameResult` (original date, `passed` recomputed) and clears the guest cookie. Opening an existing player link or logging out leaves the guest cookie alone, so on a shared computer a guest's stars never end up in another child's account.
 - Never render the player link as an `<a>` (Turbo prefetches links). Show it in a readonly input with a copy button.
 - JSON endpoints that change data must accept JSON only (`#[MapRequestPayload(acceptFormat: 'json')]`). Together with the SameSite=Lax cookie this is the CSRF protection. HTML forms use Symfony's (stateless) CSRF tokens.
 
 ### Frontend architecture rule
 
 - **Game logic** lives in `assets/games/<game>/*.js`. These are pure ES modules: no DOM access, no bare imports (no `@hotwired/...` or other importmap packages), and only relative imports. Inject randomness and time as parameters so the code is deterministic in tests.
-- **Stimulus controllers** in `assets/controllers/` import that logic with a relative path (e.g. `../games/rekenen/tafels.js`). They only connect the DOM to it: targets, actions, rendering.
+- **Stimulus controllers** in `assets/controllers/` import that logic with a relative path (e.g. `../games/rekenen/tafels.js`). They only connect the DOM to it: targets, actions, rendering. Shared controller code lives in a base class file without the `_controller.js` suffix (`bubble_game.js`), so Stimulus doesn't register it on its own.
 - With this split, all game logic can be tested with Vitest in Node without a browser or importmap.
 - JS tests live in `tests/js/`, never in `assets/`, because AssetMapper serves everything under `assets/` publicly.
 
@@ -156,7 +193,7 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 - Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS **and fonts** locally into `assets/vendor/` (git-ignored). `importmap:install` downloads them, and `composer install` runs it automatically.
 - Fonts: pin the font's CSS with `ddev console importmap:require @fontsource/<font>/<weight>.css` and import it in `assets/app.js`. AssetMapper also downloads the woff2/woff files that CSS references. Never commit font files and never link to fonts.googleapis.com.
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
-- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, and per finished tafels round the table, duration, passed flag and date. For guests the server stores nothing: their best time and date per table live only in the signed `scholi_guest` cookie in their browser. Nothing else: no e-mail, no IP addresses, no tracking.
+- What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, and per finished round the game, level (e.g. the table), duration, passed flag and date. For guests the server stores nothing: their best time and date per game and level live only in the signed `scholi_guest` cookie in their browser. Nothing else: no e-mail, no IP addresses, no tracking.
 
 ## Code style
 
@@ -173,10 +210,11 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 ## Adding a new game (checklist)
 
-1. A Dutch route in the subject's controller (`src/Controller/Game/<Subject>Controller.php`), or a new subject controller plus a card on the homepage (`templates/home/index.html.twig`).
-2. `templates/game/<subject>/<game>.html.twig` that mounts `data-controller="<game>"`.
-3. `assets/controllers/<game>_controller.js` (thin) + `assets/games/<subject>/<game>.js` (logic).
-4. `tests/js/games/<subject>/<game>.test.js` + functional tests for the new URLs.
-5. Translation keys under `game.<subject>.<game>.*`.
-6. Describe the mechanics under **Games** in this file.
-7. Run `ddev qa`.
+1. A game controller with Dutch routes (`src/Controller/Game/<Game>Controller.php`; a bubble game extends `AbstractBubbleGameController`) and a card in the subject's game list (`templates/game/<subject>/index.html.twig`). A new subject also needs a card on the homepage (`templates/home/index.html.twig`).
+2. `templates/game/<subject>/<game>.html.twig` that mounts `data-controller="<game>"`. A bubble game extends `game/bubble_game.html.twig` instead.
+3. `assets/controllers/<game>_controller.js` (thin; a bubble game extends `bubble_game.js` and implements `createSums()`) + `assets/games/<subject>/<game>.js` (logic). Reuse `assets/games/shared/`.
+4. If its rounds are saved: a case in the `Game` enum with its level rules, so results and the guest cookie accept it.
+5. `tests/js/games/<subject>/<game>.test.js` + functional tests for the new URLs.
+6. Translation keys under `game.<subject>.<game>.*` (shared bubble texts are in `game.bubbles.*`).
+7. Describe the mechanics under **Games** in this file.
+8. Run `ddev qa`.

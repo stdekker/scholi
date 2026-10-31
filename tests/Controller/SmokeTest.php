@@ -33,5 +33,9 @@ final class SmokeTest extends WebTestCase
         yield 'alle tafels' => ['/rekenen/alle-tafels'];
         yield 'tafels 2 tot 5' => ['/rekenen/alle-tafels/2-tot-5'];
         yield 'tafels 2 tot 12' => ['/rekenen/alle-tafels/2-tot-12'];
+        yield 'tafels' => ['/rekenen/tafels'];
+        yield 'erbij en eraf' => ['/rekenen/erbij-eraf'];
+        yield 'tot 10 erbij' => ['/rekenen/erbij-eraf/tot-10/erbij'];
+        yield 'tot 100 met brug door elkaar' => ['/rekenen/erbij-eraf/tot-100-brug/door-elkaar'];
     }
 }

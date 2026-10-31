@@ -11,10 +11,47 @@ home:
     intro: Wat wil je vandaag oefenen?
 
 game:
+    # Shared by the bubble games (templates/game/bubble_game.html.twig).
+    bubbles:
+        answer: Jouw antwoord
+        sum_label:
+            plus: '%left% plus %right%'
+            min: '%left% min %right%'
+            keer: '%left% keer %right%'
+        correct: 'Goed zo! %sum% = %answer%'
+        try_again: Bijna! Probeer het nog eens.
+        frozen: Oei, deze bubbel is bevroren. Ga verder met een andere!
+        frozen_label: '%label%, bevroren'
+        revealed_label: '%label% is %answer%'
+        done_frozen: 'Je hebt %solved% van de %total% bubbels geknapt. Oefen nog even en probeer het opnieuw!'
+        remaining: 'Bubbels over: %count%'
+        done_late: Alle bubbels zijn geknapt. Iets sneller de volgende keer!
+        again: Nog een keer
+        saved: Je resultaat is bewaard.
+        save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
+        guest_saved: Je resultaat is bewaard op deze computer.
+        guest_link: Maak een speler om het altijd te bewaren.
+        # "Lukt het binnen %within%?"
+        within:
+            one_minute: een minuut
+            two_minutes: twee minuten
+        ready:
+            title: Ben je er klaar voor?
+            text: Knap alle bubbels binnen de tijd.
+            button: Ik ben er klaar voor!
+            go: Start!
+            back: Terug
+        timer:
+            label: Tijd
+            up: De tijd is om! Maak de bubbels rustig af.
+        keypad:
+            erase: Wissen
+            check: OK
     rekenen:
         title: Rekenen
-        description: Oefen de tafels van 1 tot en met 12.
-        intro: Welke tafel wil je oefenen?
+        description: De tafels, plussommen en minsommen.
+        intro: Wat wil je oefenen?
+        back: Ander spel
         table: Tafel van %table%
         all_tables: Alle tafels
         mixes:
@@ -25,49 +62,57 @@ game:
             practised_locked: Maak eerst twee tafels af.
             back: Terug
         tafels:
+            name: Tafels
+            description: De tafels van 1 tot en met 12.
+            picker_intro: Welke tafel wil je oefenen?
             title: De tafel van %table%
             intro: Klik op een bubbel en typ het antwoord. Lukt het binnen een minuut?
-            sum_label: '%multiplier% keer %table%'
-            answer: Jouw antwoord
-            correct: 'Goed zo! %multiplier% × %table% = %answer%'
-            try_again: Bijna! Probeer het nog eens.
-            frozen: Oei, deze bubbel is bevroren. Ga verder met een andere!
-            frozen_label: '%multiplier% keer %table%, bevroren'
-            revealed_label: '%multiplier% keer %table% is %answer%'
-            done_frozen: 'Je hebt %solved% van de %total% bubbels geknapt. Oefen nog even en probeer het opnieuw!'
-            remaining: 'Bubbels over: %count%'
             done: Super gedaan! Je hebt alle bubbels van de tafel van %table% binnen een minuut geknapt!
-            done_late: Alle bubbels zijn geknapt. Iets sneller de volgende keer!
-            again: Nog een keer
             all:
                 intro: 'Twintig sommen uit de tafels 2 tot %last% door elkaar. Klik op een bubbel en typ het antwoord. Lukt het binnen twee minuten?'
                 intro_practised: Twintig sommen uit de tafels die je al hebt geoefend, door elkaar. Klik op een bubbel en typ het antwoord. Lukt het binnen twee minuten?
                 done: Super gedaan! Je hebt alle twintig bubbels binnen twee minuten geknapt!
             other_table: Andere tafel
             other_mix: Andere tafels
-            saved: Je resultaat is bewaard.
-            save_failed: Je resultaat kon niet worden bewaard. Probeer het later nog eens.
-            guest_saved: Je resultaat is bewaard op deze computer.
-            guest_link: Maak een speler om het altijd te bewaren.
-            ready:
-                title: Ben je er klaar voor?
-                text: Knap alle bubbels binnen de tijd.
-                button: Ik ben er klaar voor!
-                go: Start!
-                back: Terug
-            timer:
-                label: Tijd
-                up: De tijd is om! Maak de bubbels rustig af.
-            keypad:
-                erase: Wissen
-                check: OK
+        erbij_eraf:
+            name: Erbij en eraf
+            description: Plussommen en minsommen tot 10, tot 20 en tot 100.
+            picker_intro: Kies je niveau. Wil je erbij, eraf of allebei door elkaar oefenen?
+            example: 'Bijvoorbeeld %example%'
+            levels:
+                tot_10:
+                    name: Tot 10
+                    example: 3 + 4 en 9 − 5
+                tot_20:
+                    name: Tot 20 zonder brug
+                    example: 12 + 5 en 17 − 4
+                tot_20_brug:
+                    name: Tot 20 met brug
+                    example: 8 + 5 en 13 − 6
+                tientallen:
+                    name: Tientallen tot 100
+                    example: 30 + 40 en 90 − 50
+                tot_100:
+                    name: Tot 100 zonder brug
+                    example: 34 + 25 en 68 − 25
+                tot_100_brug:
+                    name: Tot 100 met brug
+                    example: 38 + 7 en 52 − 18
+            operations:
+                erbij: Erbij
+                eraf: Eraf
+                door_elkaar: Door elkaar
+            title: '%level%: %operation%'
+            intro: 'Tien sommen. Klik op een bubbel en typ het antwoord. Lukt het binnen %within%?'
+            done: 'Super gedaan! Je hebt alle bubbels binnen %within% geknapt!'
+            other: Ander niveau
 
 player:
     header:
         save_progress: Voortgang bewaren
     new:
         title: Maak je speler
-        intro: Dan bewaren we hoe goed je de tafels kent. Je hoeft alleen een naam te kiezen.
+        intro: Dan bewaren we hoe goed je de sommen kent. Je hoeft alleen een naam te kiezen.
         name_label: Jouw spelersnaam
         name_help: Houd deze grappige naam, kies een andere met de dobbelsteen of verzin zelf een naam. Gebruik niet je echte naam.
         emoji_label: Jouw dier
@@ -90,9 +135,12 @@ player:
         title: Jouw tafels
         not_yet: Nog niet geoefend
         passed: 'Binnen een minuut! Beste tijd %time%'
-        passed_all: 'Binnen twee minuten! Beste tijd %time%'
+        passed_two_minutes: 'Binnen twee minuten! Beste tijd %time%'
         done: 'Gehaald. Beste tijd %time%'
         play: Tafels oefenen
+        erbij_eraf_title: Jouw erbij en eraf
+        erbij_eraf_play: Erbij en eraf oefenen
+        level: Niveau
     logout:
         title: Uitloggen
         intro: Speel je op een computer van school? Log dan uit. Deze computer vergeet je speler. Met je spelerslink kom je weer terug.

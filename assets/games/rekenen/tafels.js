@@ -1,14 +1,10 @@
 /**
- * Tafels (multiplication tables) game logic.
+ * Tafels (multiplication tables) game logic: which sums a round asks.
  *
  * A round practises one table (1–12): ten sums "multiplier × table" for multipliers 1–10,
- * in random order. "Alle tafels" mixes several tables and instead picks ALL_TABLES_COUNT
- * different sums from all their sums. A task is solved once the pupil enters the right answer; after
- * MAX_ATTEMPTS wrong answers it is frozen instead. The round is complete when every task is
- * solved or frozen, whether or not the time has run out.
- *
- * Timer: the round's clock starts after a READY_COUNTDOWN_SECONDS countdown. The pupil passes
- * when all sums are solved (none frozen) within TIME_LIMIT_MS; after that they may still finish.
+ * in random order (Dutch notation: 2 × 6 belongs to de tafel van 6). "Alle tafels" mixes
+ * several tables and instead picks ALL_TABLES_COUNT different sums from all their sums.
+ * Playing the round (answers, freezing, clock) is shared: see ../shared/round.js.
  *
  * Pure ES module: no DOM access, no bare (importmap) imports, randomness injected.
  * The DOM wiring lives in assets/controllers/tafels_controller.js.
@@ -18,45 +14,18 @@ import { shuffle } from '../shared/random.js';
 
 export const MIN_TABLE = 1;
 export const MAX_TABLE = 12;
-/** Wrong answers after which a bubble freezes. */
-export const MAX_ATTEMPTS = 3;
 /** Bubbles in a round of several tables (the Dutch texts say "twintig"). */
 export const ALL_TABLES_COUNT = 20;
-export const ANSWER_MAX_LENGTH = 3;
-/** Default only: the page passes the server's limit (App\Game\Tafels::TIME_LIMIT_MS) to createRound. */
-export const TIME_LIMIT_MS = 60_000;
-export const READY_COUNTDOWN_SECONDS = 3;
 
 /**
- * @typedef {object} Task
- * @property {number} id
- * @property {number} multiplier
- * @property {number} table
- * @property {number} answer
- * @property {boolean} solved
- * @property {number} wrongAttempts
- * @property {boolean} frozen true after MAX_ATTEMPTS wrong answers
- */
-
-/**
- * @typedef {object} Round
- * @property {number[]} tables one table (1–12), or several for "alle tafels"
- * @property {Task[]} tasks
- * @property {number} timeLimitMs
- * @property {number | null} startedAt timestamp (ms) the clock started, null before that
- * @property {number | null} finishedAt timestamp (ms) the last task was solved
- */
-
-/**
- * Creates a new round: the ten sums of one table in random order, or for several tables
+ * The sums of a round: the ten sums of one table in random order, or for several tables
  * ALL_TABLES_COUNT different sums picked at random from all their sums.
  *
  * @param {number[]} tables at least one, each an integer from MIN_TABLE to MAX_TABLE, no duplicates
  * @param {() => number} [random] source of randomness in [0, 1)
- * @param {number} [timeLimitMs]
- * @returns {Round}
+ * @returns {import('../shared/round.js').Sum[]}
  */
-export function createRound(tables, random = Math.random, timeLimitMs = TIME_LIMIT_MS) {
+export function tafelsSums(tables, random = Math.random) {
     const isTable = (table) => Number.isInteger(table) && table >= MIN_TABLE && table <= MAX_TABLE;
     if (tables.length === 0 || new Set(tables).size !== tables.length || !tables.every(isTable)) {
         throw new RangeError(
@@ -65,28 +34,10 @@ export function createRound(tables, random = Math.random, timeLimitMs = TIME_LIM
     }
 
     const sums = tables.flatMap((table) =>
-        range(1, 10).map((multiplier) => ({ multiplier, table })),
-    );
-    const picked = shuffle(sums, random).slice(
-        0,
-        tables.length > 1 ? ALL_TABLES_COUNT : sums.length,
+        range(1, 10).map((multiplier) => ({ left: multiplier, operator: 'keer', right: table })),
     );
 
-    return {
-        tables: [...tables],
-        tasks: picked.map(({ multiplier, table }, index) => ({
-            id: index + 1,
-            multiplier,
-            table,
-            answer: multiplier * table,
-            solved: false,
-            wrongAttempts: 0,
-            frozen: false,
-        })),
-        timeLimitMs,
-        startedAt: null,
-        finishedAt: null,
-    };
+    return shuffle(sums, random).slice(0, tables.length > 1 ? ALL_TABLES_COUNT : sums.length);
 }
 
 /**
@@ -96,210 +47,4 @@ export function createRound(tables, random = Math.random, timeLimitMs = TIME_LIM
  */
 function range(from, to) {
     return Array.from({ length: to - from + 1 }, (_, index) => from + index);
-}
-
-/**
- * Whether `input` is exactly the right answer. Only plain digits are accepted.
- *
- * @param {Task} task
- * @param {string} input
- * @returns {boolean}
- */
-export function checkAnswer(task, input) {
-    return /^\d+$/.test(input) && Number(input) === task.answer;
-}
-
-/**
- * Returns a new round with the given task marked as solved. Solving the last task
- * records `finishedAt`.
- *
- * @param {Round} round
- * @param {number} taskId
- * @param {number} now current timestamp in ms
- * @returns {Round}
- */
-export function solveTask(round, taskId, now) {
-    return updateTask(round, taskId, now, (task) => ({ ...task, solved: true }));
-}
-
-/**
- * Registers a wrong answer; the MAX_ATTEMPTS-th wrong answer freezes the task. Freezing the
- * last open task completes the round (records `finishedAt`).
- *
- * @param {Round} round
- * @param {number} taskId
- * @param {number} now current timestamp in ms
- * @returns {Round}
- */
-export function registerWrongAnswer(round, taskId, now) {
-    return updateTask(round, taskId, now, (task) => {
-        const wrongAttempts = task.wrongAttempts + 1;
-
-        return { ...task, wrongAttempts, frozen: wrongAttempts >= MAX_ATTEMPTS };
-    });
-}
-
-/**
- * @param {Round} round
- * @param {number} taskId
- * @param {number} now
- * @param {(task: Task) => Task} change
- * @returns {Round}
- */
-function updateTask(round, taskId, now, change) {
-    const tasks = round.tasks.map((task) =>
-        task.id === taskId && !task.solved && !task.frozen ? change(task) : task,
-    );
-    const complete = tasks.every((task) => task.solved || task.frozen);
-
-    return { ...round, tasks, finishedAt: complete ? (round.finishedAt ?? now) : null };
-}
-
-/**
- * @param {Round} round
- * @returns {Task[]}
- */
-export function frozenTasks(round) {
-    return round.tasks.filter((task) => task.frozen);
-}
-
-/**
- * @param {Round} round
- * @returns {Task[]}
- */
-export function remainingTasks(round) {
-    return round.tasks.filter((task) => !task.solved && !task.frozen);
-}
-
-/**
- * @param {Round} round
- * @returns {boolean}
- */
-export function isRoundComplete(round) {
-    return remainingTasks(round).length === 0;
-}
-
-/**
- * @param {Round} round
- * @param {number} taskId
- * @returns {Task | undefined}
- */
-export function findTask(round, taskId) {
-    return round.tasks.find((task) => task.id === taskId);
-}
-
-/**
- * Starts the round's clock; does nothing if it is already running.
- *
- * @param {Round} round
- * @param {number} now current timestamp in ms
- * @returns {Round}
- */
-export function startTimer(round, now) {
-    return round.startedAt === null ? { ...round, startedAt: now } : round;
-}
-
-/**
- * Milliseconds left on the clock (never negative). Stops counting once the round is finished.
- *
- * @param {Round} round
- * @param {number} now current timestamp in ms
- * @returns {number}
- */
-export function timeLeft(round, now) {
-    if (round.startedAt === null) {
-        return round.timeLimitMs;
-    }
-
-    const elapsed = (round.finishedAt ?? now) - round.startedAt;
-
-    return Math.max(0, round.timeLimitMs - elapsed);
-}
-
-/**
- * @param {Round} round
- * @param {number} now current timestamp in ms
- * @returns {boolean}
- */
-export function isTimeUp(round, now) {
-    return round.startedAt !== null && timeLeft(round, now) === 0;
-}
-
-/**
- * Whether every sum was solved within the time limit.
- *
- * @param {Round} round
- * @returns {boolean}
- */
-export function isPassed(round) {
-    return (
-        round.startedAt !== null &&
-        round.finishedAt !== null &&
-        frozenTasks(round).length === 0 &&
-        round.finishedAt - round.startedAt <= round.timeLimitMs
-    );
-}
-
-/**
- * How long the pupil took for the whole round, or null while it is not finished.
- *
- * @param {Round} round
- * @returns {number | null}
- */
-export function roundDuration(round) {
-    if (round.startedAt === null || round.finishedAt === null) {
-        return null;
-    }
-
-    return round.finishedAt - round.startedAt;
-}
-
-/**
- * Formats milliseconds as m:ss, rounding up so the clock shows 0:00 only when time is up.
- *
- * @param {number} ms
- * @returns {string}
- */
-export function formatTime(ms) {
-    const seconds = Math.ceil(Math.max(0, ms) / 1000);
-
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-/**
- * Appends a digit typed on the keypad or keyboard. Non-digits and input beyond
- * `maxLength` are ignored.
- *
- * @param {string} value
- * @param {string} digit
- * @param {number} [maxLength]
- * @returns {string}
- */
-export function appendDigit(value, digit, maxLength = ANSWER_MAX_LENGTH) {
-    if (!/^\d$/.test(digit) || value.length >= maxLength) {
-        return value;
-    }
-
-    return value + digit;
-}
-
-/**
- * @param {string} value
- * @returns {string}
- */
-export function removeLastDigit(value) {
-    return value.slice(0, -1);
-}
-
-/**
- * Fills `%name%` placeholders in a (translated) message.
- *
- * @param {string} template e.g. "Nog %count% bubbels"
- * @param {Record<string, string | number>} params e.g. { count: 7 }
- * @returns {string}
- */
-export function format(template, params) {
-    return template.replace(/%(\w+)%/g, (match, name) =>
-        Object.hasOwn(params, name) ? String(params[name]) : match,
-    );
 }

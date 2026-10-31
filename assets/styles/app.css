@@ -164,7 +164,7 @@ body {
     padding: var(--space-4) var(--space-3);
 }
 
-/* Game overview (homepage) */
+/* Game overview (homepage, /rekenen) */
 
 .game-list {
     display: grid;
@@ -295,6 +295,33 @@ body {
 
 .table-picker__back {
     margin-block-start: var(--space-3);
+}
+
+/* Erbij en eraf: erbij / eraf / door elkaar side by side at every width; labels may wrap. */
+.table-picker--operations {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.table-picker--operations .table-picker__label {
+    white-space: normal;
+}
+
+/* Rekenen: erbij-en-eraf levels */
+
+.level-picker {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.level-picker__title {
+    margin-block-end: 0;
+}
+
+.level-picker__example {
+    margin-block: 0 var(--space-2);
 }
 
 @media (min-width: 40rem) {
@@ -979,6 +1006,21 @@ a.table-picker__link:hover {
 
 .progress-list__status {
     font-size: 1rem;
+}
+
+/* Erbij en eraf on the player page: levels × erbij / eraf / door elkaar. */
+.progress-table {
+    width: 100%;
+    margin-block-end: var(--space-3);
+    border-collapse: collapse;
+    font-size: 1rem;
+}
+
+.progress-table th,
+.progress-table td {
+    padding: var(--space-1) var(--space-1) var(--space-1) 0;
+    border-block-end: 2px solid var(--color-border);
+    text-align: start;
 }
 
 .round-complete__note {

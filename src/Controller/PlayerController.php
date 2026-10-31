@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\GameResult;
 use App\Entity\Player;
-use App\Entity\TafelsResult;
 use App\Form\PlayerType;
+use App\Game\ErbijEraf;
+use App\Game\Game;
 use App\Game\Tafels;
 use App\Game\TafelsMix;
 use App\Player\FunNameGenerator;
+use App\Repository\GameResultRepository;
 use App\Repository\PlayerRepository;
-use App\Repository\TafelsResultRepository;
 use App\Security\GuestProgressCookie;
 use App\Security\PlayerCookie;
 use App\Security\PlayerToken;
@@ -38,7 +40,7 @@ final class PlayerController extends AbstractController
     #[Route('/speler', name: 'app_player', methods: ['GET'])]
     public function show(
         Request $request,
-        TafelsResultRepository $results,
+        GameResultRepository $results,
         #[CurrentUser] ?Player $player = null,
     ): Response {
         if (null === $player) {
@@ -55,7 +57,9 @@ final class PlayerController extends AbstractController
             'is_new' => $request->query->getBoolean('nieuw'),
             'tables' => Tafels::tables(),
             'mixes' => TafelsMix::cases(),
-            'progress' => $results->progressFor($player),
+            'progress' => $results->progressFor($player, Game::Tafels),
+            'erbij_eraf_grid' => ErbijEraf::grid(),
+            'erbij_eraf_progress' => $results->progressFor($player, Game::ErbijEraf),
         ]);
     }
 
@@ -84,8 +88,8 @@ final class PlayerController extends AbstractController
             $token = PlayerToken::generate();
             $player = new Player($name, PlayerToken::hash($token), new \DateTimeImmutable(), $emoji);
             $entityManager->persist($player);
-            foreach ($guestProgress->results ?? [] as $table => $result) {
-                $entityManager->persist(new TafelsResult($player, $table, $result['bestMs'], $result['completedAt']));
+            foreach ($guestProgress?->entries() ?? [] as [$game, $level, $bestMs, $completedAt]) {
+                $entityManager->persist(new GameResult($player, $game, $level, $bestMs, $completedAt));
             }
             $entityManager->flush();
 

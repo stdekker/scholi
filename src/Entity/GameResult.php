@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Game\Tafels;
-use App\Repository\TafelsResultRepository;
+use App\Game\Game;
+use App\Repository\GameResultRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * One completed tafels round. Whether it counts as passed is decided here, on the server.
+ * One completed round of a game. Whether it counts as passed is decided here, on the server.
  */
-#[ORM\Entity(repositoryClass: TafelsResultRepository::class)]
-#[ORM\Index(name: 'tafels_result_player_table', columns: ['player_id', 'table_number'])]
-class TafelsResult
+#[ORM\Entity(repositoryClass: GameResultRepository::class)]
+#[ORM\Index(name: 'game_result_player_game_level', columns: ['player_id', 'game', 'level'])]
+class GameResult
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -25,9 +25,12 @@ class TafelsResult
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Player $player;
 
-    /** 1–12, or a TafelsMix value for an "alle tafels" round. */
+    #[ORM\Column(length: 16, enumType: Game::class)]
+    private Game $game;
+
+    /** Meaning depends on the game: see Game. */
     #[ORM\Column(type: Types::SMALLINT)]
-    private int $tableNumber;
+    private int $level;
 
     #[ORM\Column]
     private int $durationMs;
@@ -38,12 +41,13 @@ class TafelsResult
     #[ORM\Column]
     private \DateTimeImmutable $completedAt;
 
-    public function __construct(Player $player, int $tableNumber, int $durationMs, \DateTimeImmutable $completedAt)
+    public function __construct(Player $player, Game $game, int $level, int $durationMs, \DateTimeImmutable $completedAt)
     {
         $this->player = $player;
-        $this->tableNumber = $tableNumber;
+        $this->game = $game;
+        $this->level = $level;
         $this->durationMs = $durationMs;
-        $this->passed = Tafels::isPassed($tableNumber, $durationMs);
+        $this->passed = $game->isPassed($level, $durationMs);
         $this->completedAt = $completedAt;
     }
 
@@ -57,9 +61,14 @@ class TafelsResult
         return $this->player;
     }
 
-    public function getTableNumber(): int
+    public function getGame(): Game
     {
-        return $this->tableNumber;
+        return $this->game;
+    }
+
+    public function getLevel(): int
+    {
+        return $this->level;
     }
 
     public function getDurationMs(): int
