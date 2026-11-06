@@ -148,7 +148,39 @@ body {
 }
 
 .site-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
+}
+
+/* The elephant in the bottom right corner of the task selection screens: in the footer, to the
+   right of the button. */
+.site-footer__mascot {
+    width: 9rem;
+    height: auto;
+    margin-inline-start: auto;
+}
+
+@media (max-width: 40rem) {
+    .site-footer__mascot {
+        width: 5.5rem;
+    }
+}
+
+/* On a monitor there is room beside the page column (60rem): the elephant stands in the corner of
+   the window, large. Out of the footer, so it doesn't push the footer, and the "Meer over Scholi"
+   button, off the screen; and it never takes a click. */
+@media (min-width: 90rem) {
+    .site-footer__mascot {
+        position: fixed;
+        inset-block-end: 0;
+        inset-inline-end: 3rem;
+        width: 12rem;
+        margin: 0;
+        pointer-events: none;
+    }
 }
 
 .about-button {
@@ -185,6 +217,13 @@ body {
 
 .about-popover::backdrop {
     background-color: rgb(31 41 55 / 0.6);
+}
+
+.about-popover__logo {
+    display: block;
+    width: 6rem;
+    height: auto;
+    margin: 0 auto var(--space-2);
 }
 
 .about-popover__title {

@@ -39,6 +39,7 @@
             {% endif %}
         </header>
         <div class="about-popover" id="about-scholi" popover role="dialog" aria-labelledby="about-scholi-title">
+            <img class="about-popover__logo" src="{{ asset('images/scholi-mascot.webp') }}" alt="" width="96" height="96">
             <h2 class="about-popover__title" id="about-scholi-title">{{ 'app.about.title'|trans }}</h2>
             <p>{{ 'app.about.text'|trans }}</p>
             <button type="button" class="action-button" popovertarget="about-scholi" popovertargetaction="hide">{{ 'app.about.close'|trans }}</button>
@@ -51,6 +52,10 @@
             <button type="button" class="about-button" popovertarget="about-scholi">
                 <span aria-hidden="true">ℹ️</span> {{ 'app.about.button'|trans }}
             </button>
+            {# Bottom right corner, on task selection screens only: they set `mascot` to true. Never in a game. #}
+            {% if mascot is defined and mascot %}
+                <img class="site-footer__mascot" src="{{ asset('images/scholi-mascot-large.webp') }}" alt="" width="192" height="192">
+            {% endif %}
         </footer>
     </body>
 </html>

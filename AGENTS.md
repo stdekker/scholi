@@ -78,7 +78,7 @@ src/Game/                                    # server-side game rules (Game enum
 src/Security/                                # player link token, cookie, authenticator, signed guest progress cookie
 src/Player/                                  # FunNameGenerator, GuestProgress
 src/Migrations/                              # Doctrine migrations
-templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body), header, footer with the "Meer over Scholi" popover
+templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body; a page sets `mascot` to true for the elephant in the footer), header, footer with the "Meer over Scholi" popover
 templates/home/                              # homepage
 templates/game/bubble_game.html.twig         # shared layout of the bubble games (dialog, bubbles, keypad, completion panel)
 templates/game/<subject>/                    # subject + game pages, e.g. game/rekenen/tafel.html.twig
@@ -90,6 +90,8 @@ assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g
 assets/audio/taal/dictee/<word>.mp3          # recordings of the dictee words (git-ignored, made by bin/generate-dictee-audio.mjs)
 assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js
 assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
+assets/images/scholi-mascot.webp             # the blue elephant mascot (192×192, transparent) in the "Meer over Scholi" popup
+assets/images/scholi-mascot-large.webp       # the same at 384×384: bottom right of every task selection screen (never in a game, never in the header): fixed in the corner of the window on a monitor (≥ 90rem, beside the page column), in the footer on smaller screens
 translations/messages.nl.yaml                # all user-facing text
 bin/generate-dictee-audio.mjs                # dev script: records the dictee words with ElevenLabs
 tests/Controller/, tests/Unit/               # PHPUnit functional and unit tests (tests/Support: helpers)
