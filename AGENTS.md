@@ -178,7 +178,7 @@ The bubble is only how a task is shown right now. User-facing text always says *
 ### Taal › Dictee
 
 - `/taal` lists the taal games (only **Dictee** for now). `/taal/dictee` asks two simple questions on one page: first "Kies je groep" (toggle links `?groep=6|8`, groep 6 by default, the chosen one has `aria-current`), then "Kies je niveau": four level tiles (`DicteeLevel`), each with its description and badge. `/taal/dictee/{groep-6|groep-8}/{level}` is the game, for example `/taal/dictee/groep-8/streepjes`. Unknown slugs give a 404.
-- The game speaks a word and the pupil writes it. A round has **ten** different words, picked at random from the groep's list in `src/Game/dictee_words.json` (40 words each for groep 6 and groep 8; other groepen follow later). Words are lowercase letters a–z only: no accents, no spaces.
+- The game speaks a word and the pupil writes it. A round has **ten** different words, picked at random from the groep's list in `src/Game/dictee_words.json` (240 words each for groep 6 and groep 8, in a mix of spelling topics; other groepen follow later). Words are lowercase letters a–z only: no accents, no spaces.
 - The level decides what the pupil sees of the word while writing it (`DicteeLevel::mode()`; the hint is made in `assets/games/taal/dictee.js`):
 
 | Level (slug) | Mode | The bubble shows |
