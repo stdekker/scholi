@@ -1,0 +1,338 @@
+/* Site layout */
+
+/*
+ * The header has the colour of the page. The brand is the Scholi logo (a blue cloud); the player is
+ * a blue pill. The brand turns into the same kind of pill when the logo can't be loaded.
+ */
+.site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-2);
+    padding: var(--space-2);
+    background-color: var(--color-background);
+}
+
+.site-header__brand,
+.site-header__player {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target);
+    text-decoration: none;
+}
+
+.site-header__brand--text,
+.site-header__player {
+    padding: 0 var(--space-3);
+    border: 2px solid var(--color-primary-dark);
+    border-radius: 999px;
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+    font-weight: 700;
+}
+
+/* The page colour around the pills is light, so the usual amber ring would hardly show there. */
+.site-header__brand:focus-visible,
+.site-header__player:focus-visible {
+    outline-color: var(--color-text);
+}
+
+.site-header__brand {
+    border-radius: var(--radius);
+}
+
+.site-header__brand--text {
+    border-radius: 999px;
+    font-size: 1.75rem;
+}
+
+/* The file is 480 × 234 px: sharp up to about 2.5× pixel density at this size. */
+.site-header__logo {
+    display: block;
+    height: 5.5rem;
+    width: auto;
+}
+
+/* The stats sit after the name, set apart by a thin line. If the header has to wrap on a narrow
+   screen, the player stays on the right. */
+.site-header__player {
+    gap: var(--space-2);
+    margin-inline-start: auto;
+}
+
+.site-header__name {
+    overflow-wrap: anywhere;
+}
+
+.site-header__stats {
+    display: inline-flex;
+    gap: var(--space-2);
+    padding-inline-start: var(--space-2);
+    border-inline-start: 2px solid var(--color-primary-contrast);
+    white-space: nowrap;
+}
+
+/* Phones: only the player's emoji; the name stays for screen readers. */
+@media (max-width: 40rem) {
+    .site-header__label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .site-header__icon {
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+
+    /* A smaller logo and pill, so both fit on one line at 360 px wide. */
+    .site-header {
+        column-gap: var(--space-1);
+        padding-inline: var(--space-1);
+    }
+
+    .site-header__logo {
+        height: 3.5rem;
+    }
+
+    .site-header__brand--text {
+        padding-inline: var(--space-2);
+        font-size: 1.5rem;
+    }
+
+    .site-header__player,
+    .site-header__stats {
+        gap: var(--space-1);
+    }
+
+    .site-header__player {
+        padding-inline: 0.75rem;
+        font-size: 1rem;
+    }
+
+    .site-header__stats {
+        padding-inline-start: var(--space-1);
+    }
+}
+
+/* The page colour at the top of the footer, a faint shade at the very bottom of the page. */
+.site-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: linear-gradient(to bottom, var(--color-background), var(--color-background-shade));
+}
+
+/* The elephant in the bottom right corner of the task selection screens: in the footer, to the
+   right of the button. */
+.site-footer__mascot {
+    width: 9.5rem;
+    height: auto;
+    margin-inline-start: auto;
+}
+
+@media (max-width: 40rem) {
+    .site-footer__mascot {
+        width: 9.6rem;
+    }
+}
+
+/* On a monitor there is room beside the page column (60rem): the elephant stands in the corner of
+   the window, large. Out of the footer, so it doesn't push the footer, and the "Meer over Scholi"
+   button, off the screen; and it never takes a click. */
+@media (min-width: 90rem) {
+    .site-footer__mascot {
+        position: fixed;
+        inset-block-end: 0;
+        inset-inline-end: 1rem;
+        width: 18rem;
+        margin: 0 0 1rem 0;
+        pointer-events: none;
+    }
+}
+
+.about-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-2);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.about-button:hover {
+    border-color: var(--color-primary);
+}
+
+/* "Meer over Scholi" popup (native popover, centred by the browser). */
+.about-popover {
+    width: min(28rem, calc(100% - 2 * var(--space-2)));
+    padding: var(--space-4) var(--space-3);
+    border: 0;
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: 0 8px 32px rgb(0 0 0 / 0.25);
+    text-align: center;
+}
+
+.about-popover::backdrop {
+    background-color: rgb(31 41 55 / 0.6);
+}
+
+.about-popover__logo {
+    display: block;
+    width: 6rem;
+    height: auto;
+    margin: 0 auto var(--space-2);
+}
+
+.about-popover__title {
+    margin-block-start: 0;
+}
+
+/* The GitHub link and "Sluiten": side by side, stacked when the popup is narrow. */
+.about-popover__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.about-popover__icon {
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+/* Text for screen readers only. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.site-main {
+    flex: 1 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 60rem;
+    margin-inline: auto;
+    padding: var(--space-3) var(--space-2);
+}
+
+/* Page title (subject or game name): smaller on phones so it fits next to the content. */
+h1 {
+    margin-block: 0 var(--space-2);
+    font-size: 1.75rem;
+    line-height: 1.2;
+}
+
+@media (min-width: 40rem) {
+    .site-header {
+        padding-inline: var(--space-3);
+    }
+
+    .site-main {
+        padding: var(--space-4) var(--space-3);
+    }
+
+    h1 {
+        margin-block-end: var(--space-3);
+        font-size: 2.5rem;
+    }
+}
+
+/* Game overview (homepage, /rekenen) */
+
+.game-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.game-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-height: var(--touch-target);
+    padding: var(--space-2);
+    border: 3px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    color: inherit;
+    text-decoration: none;
+}
+
+.game-card:hover {
+    border-color: var(--color-primary);
+}
+
+.game-card__title {
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+@media (min-width: 40rem) {
+    .game-list {
+        gap: var(--space-3);
+    }
+
+    .game-card {
+        padding: var(--space-3);
+    }
+
+    .game-card__title {
+        font-size: 1.5rem;
+    }
+}
+
+/* Shared buttons */
+
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    min-height: var(--touch-target);
+    padding: var(--space-1) var(--space-3);
+    border: 3px solid var(--color-primary);
+    border-radius: var(--radius);
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.action-button--secondary {
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+}
+
+/* Less prominent, but still a full-size touch target. */
+.action-button--small {
+    padding-inline: var(--space-2);
+    border-width: 2px;
+    font-size: 1rem;
+}

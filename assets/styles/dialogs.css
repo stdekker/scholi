@@ -1,0 +1,82 @@
+/* Pause dialog ("Wil je stoppen?"): looks like the ready dialog; the bubbles stop bobbing. */
+
+.pause-dialog__actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-block-start: var(--space-3);
+}
+
+.bubble-game--paused .bubble {
+    animation-play-state: paused;
+}
+
+/* Ready dialog ("Ben je er klaar voor?" + countdown) */
+
+.ready-dialog {
+    width: min(24rem, calc(100% - 2 * var(--space-2)));
+    padding: var(--space-4) var(--space-3);
+    border: 0;
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: 0 8px 32px rgb(0 0 0 / 0.25);
+    text-align: center;
+    overflow: hidden;
+}
+
+.ready-dialog::backdrop {
+    background-color: rgb(31 41 55 / 0.6);
+}
+
+.ready-dialog__title {
+    margin-block: 0 var(--space-2);
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+.ready-dialog__time {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--space-1);
+    margin: 0;
+    color: var(--color-primary);
+    font-size: 3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.ready-dialog__time-label {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.ready-dialog__button {
+    font-size: 1.5rem;
+}
+
+.ready-dialog__back {
+    margin-block-start: var(--space-2);
+}
+
+.ready-dialog__countdown {
+    margin: 0;
+    color: var(--color-primary);
+    font-size: 4.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .ready-dialog__countdown--tick {
+        animation: countdown-tick 0.4s ease-out;
+    }
+
+    @keyframes countdown-tick {
+        from {
+            opacity: 0;
+            scale: 1.4;
+        }
+    }
+}

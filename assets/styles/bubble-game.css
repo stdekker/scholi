@@ -1,0 +1,398 @@
+/* Bubble games (shared by tafels, erbij en eraf and dictee) */
+
+.bubble-game__header h1 {
+    margin-block-end: var(--space-1);
+}
+
+.bubble-game__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-3);
+}
+
+.bubble-game__progress {
+    margin: 0;
+    font-weight: 700;
+}
+
+.round-timer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-weight: 700;
+}
+
+.round-timer__time {
+    min-width: 2.5em;
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.round-timer__bar {
+    width: 8rem;
+    height: 0.75rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background-color: var(--color-border);
+}
+
+.round-timer__fill {
+    display: block;
+    width: calc(var(--time-left, 1) * 100%);
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--color-primary);
+    transition: width 0.2s linear;
+}
+
+.round-timer--expired {
+    color: var(--color-warning);
+}
+
+.bubble-game__dock {
+    position: sticky;
+    bottom: var(--space-2);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    pointer-events: none;
+}
+
+.bubble-game__dock > * {
+    pointer-events: auto;
+}
+
+.bubble-game__status {
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Keep the live region rendered (so it is announced), just invisible when empty. */
+.bubble-game__status:empty {
+    padding: 0;
+    box-shadow: none;
+}
+
+.bubble-field {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin: 0;
+    padding: var(--space-3) 0;
+    list-style: none;
+}
+
+.bubble {
+    --bubble-size: 8.5rem;
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: var(--bubble-size);
+    height: var(--bubble-size);
+    border: 3px solid hsl(var(--bubble-hue) 70% 70%);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 22% 18%, rgb(255 255 255 / 0.9) 0 6%, transparent 7%),
+        radial-gradient(
+            circle at 50% 50%,
+            hsl(var(--bubble-hue) 90% 95%),
+            hsl(var(--bubble-hue) 80% 82%)
+        );
+    box-shadow: inset -6px -8px 16px hsl(var(--bubble-hue) 60% 70% / 0.6);
+    transition: scale 0.2s ease;
+}
+
+.bubble__sum {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.bubble__answer {
+    width: 4.5ch;
+    margin-block-end: var(--space-2);
+    padding: 0.1em 0.25em;
+    border: 3px solid var(--color-primary);
+    border-radius: 0.5rem;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.bubble--active {
+    z-index: 1;
+    scale: 1.2;
+    scroll-margin-block: var(--space-4) 26rem;
+    box-shadow:
+        inset -6px -8px 16px hsl(var(--bubble-hue) 60% 70% / 0.6),
+        0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.bubble--active .bubble__sum {
+    height: auto;
+    cursor: default;
+}
+
+.bubble--active .bubble__placeholder {
+    display: none;
+}
+
+.bubble__frozen-icon {
+    display: none;
+}
+
+/* Three wrong answers: smaller, grey, no answer, can't be clicked. */
+.bubble--frozen {
+    scale: 0.75;
+    border-color: #9ca3af;
+    background: radial-gradient(circle at 50% 50%, #f3f4f6, #d1d5db);
+    box-shadow: none;
+    transition: scale 0.3s ease;
+}
+
+.bubble--frozen .bubble__sum {
+    color: #374151;
+    cursor: default;
+}
+
+.bubble--frozen .bubble__placeholder {
+    display: none;
+}
+
+.bubble--frozen .bubble__frozen-icon {
+    display: block;
+    font-size: 1.25rem;
+}
+
+.bubble__solution {
+    display: none;
+}
+
+/* Round over: a frozen bubble shows the right answer in place of the ❄️. */
+.bubble--revealed .bubble__frozen-icon {
+    display: none;
+}
+
+.bubble--revealed .bubble__solution {
+    display: block;
+    color: var(--color-primary);
+    font-size: 1.75rem;
+}
+
+.bubble--appearing {
+    animation: bubble-appear 0.3s ease-out var(--appear-delay, 0s) both;
+}
+
+.bubble--wrong {
+    animation: bubble-wiggle 0.4s ease;
+}
+
+.bubble--popping {
+    pointer-events: none;
+    animation: bubble-pop 0.35s ease-out forwards;
+}
+
+@keyframes bubble-wiggle {
+    0%,
+    100% {
+        rotate: 0deg;
+    }
+
+    25% {
+        rotate: -6deg;
+    }
+
+    75% {
+        rotate: 6deg;
+    }
+}
+
+@keyframes bubble-appear {
+    from {
+        opacity: 0;
+        scale: 0;
+    }
+}
+
+@keyframes bubble-pop {
+    to {
+        opacity: 0;
+        scale: 1.6;
+    }
+}
+
+/* Confetti of a popped bubble, in its colour (--bubble-hue). Built by the controller at the
+   bubble's centre; each piece flies to its own --x/--y and falls a little. */
+.confetti {
+    position: fixed;
+    z-index: 10;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.confetti__piece {
+    position: absolute;
+    top: -0.225rem;
+    left: -0.15rem;
+    width: 0.3rem;
+    height: 0.45rem;
+    border-radius: 1px;
+    background-color: hsl(var(--bubble-hue) 85% var(--lightness, 55%));
+    animation: confetti-burst 0.6s cubic-bezier(0.2, 0.7, 0.4, 1) forwards;
+}
+
+.confetti__piece:nth-child(3n) {
+    top: -0.175rem;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+}
+
+@keyframes confetti-burst {
+    from {
+        translate: 0 0;
+        rotate: 0deg;
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 1;
+    }
+
+    to {
+        translate: var(--x) calc(var(--y) + 1.5rem);
+        rotate: var(--turn);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .bubble:not(
+        .bubble--appearing,
+        .bubble--active,
+        .bubble--wrong,
+        .bubble--popping,
+        .bubble--frozen
+    ) {
+        animation: bubble-bob 3s ease-in-out var(--bubble-delay, 0s) infinite;
+    }
+
+    @keyframes bubble-bob {
+        0%,
+        100% {
+            translate: 0 0;
+        }
+
+        50% {
+            translate: 0 -0.6rem;
+        }
+    }
+}
+
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-1);
+    width: min(18rem, 100%);
+    padding: var(--space-2);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+}
+
+.keypad__key {
+    min-height: 3.5rem;
+    border: 2px solid var(--color-border);
+    border-radius: 0.75rem;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.keypad__key:active {
+    background-color: var(--color-border);
+}
+
+.keypad__key--check {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+}
+
+.round-complete {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-3);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    text-align: center;
+}
+
+.round-complete__message {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.round-complete__duration {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.round-complete__time {
+    color: var(--color-primary);
+}
+
+.round-complete__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+@media (max-width: 30rem) {
+    .bubble {
+        --bubble-size: 7rem;
+    }
+
+    .bubble__sum,
+    .bubble__answer {
+        font-size: 1.35rem;
+    }
+}

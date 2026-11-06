@@ -100,7 +100,14 @@ assets/controllers/bubble_game/              # DOM helpers of that base class (e
 assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js, taal/dictee.js
 assets/audio/taal/dictee/<word>.mp3          # recordings of the dictee words (git-ignored, made by bin/generate-dictee-audio.mjs)
 assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js, api.js (postJson)
-assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
+assets/styles/app.css                        # only the ordered @imports of the files below (AssetMapper rewrites them); a new file goes in that list, order matters
+assets/styles/base.css                       # design tokens (CSS custom properties), reset, focus, reduced motion
+assets/styles/layout.css                     # site header/footer/mascot/popup, buttons, page titles, game overviews
+assets/styles/picker.css                     # pickers: tafels, mixes, erbij en eraf, dictee
+assets/styles/bubble-game.css                # the bubble games: bubbles, timer, dock, keypad, confetti
+assets/styles/dialogs.css                    # ready and pause dialogs
+assets/styles/player.css                     # progress badges, player pages, emoji popup
+assets/styles/dictee.css                     # dictee's word bubbles (after bubble-game.css)
 assets/images/                               # logo (header) and elephant mascot (popup; large one on the task selection screens, never in a game or the header)
 translations/messages.nl.yaml                # all user-facing text
 docs/                                        # per-game mechanics, players, deployment (see "Read before touching")

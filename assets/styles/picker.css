@@ -1,0 +1,146 @@
+/* Rekenen: table picker */
+
+/* Fixed columns so every tile has the same size: 2 on phones, a 3 × 4 grid (tables 1–12) above. */
+.table-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.table-picker__link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 5rem;
+    padding: var(--space-2) var(--space-1);
+    border: 3px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    color: inherit;
+    /* Shrinks a little on very narrow phones so "Tafel van 10" still fits on one line. */
+    font-size: clamp(1rem, 5vw, 1.25rem);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+}
+
+.table-picker__label {
+    white-space: nowrap;
+}
+
+/* Phones: one tile wide, centred on its own row under the 2-column grid. */
+.table-picker__item--all {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc((100% - var(--space-2)) / 2);
+}
+
+.table-picker__link--all {
+    border-color: var(--color-primary);
+}
+
+/* "Alle tafels" mixes: wider tiles for the longer labels, one column on phones. */
+.table-picker--mixes {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.table-picker__note {
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+/* "Geoefende tafels" before two tables are finished: not a link, so no hover. */
+.table-picker__link--locked {
+    margin: 0;
+    border-style: dashed;
+}
+
+.table-picker__back {
+    margin-block-start: var(--space-3);
+}
+
+/* Erbij en eraf: "Wat wil je oefenen?" and "Kies je niveau" above the two choices. */
+.picker-step {
+    margin-block: 0 var(--space-1);
+    font-size: 1.25rem;
+}
+
+/* Erbij en eraf: the level tiles hold a longer name ("Tot 20 zonder brug"), so labels may wrap. */
+.table-picker--levels .table-picker__label {
+    white-space: normal;
+}
+
+/* Erbij en eraf: erbij / eraf / door elkaar as one row of large toggle links above the levels. */
+.operation-switch {
+    display: grid;
+    /* One column per choice: three for erbij / eraf / door elkaar, two for the groepen of dictee. */
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    list-style: none;
+}
+
+.operation-switch__link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: var(--touch-target);
+    padding: var(--space-1);
+    border: 3px solid var(--color-primary);
+    border-radius: var(--radius);
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+}
+
+.operation-switch__symbol {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+/* The chosen one is filled; aria-current says so to screen readers, not only the colour. */
+.operation-switch__link[aria-current='page'] {
+    background-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+}
+
+@media (min-width: 40rem) {
+    .table-picker {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .table-picker--mixes,
+    .table-picker--pairs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* Same size as the other tiles, centred under the 3 × 4 grid. */
+    .table-picker__item--all {
+        grid-column: 2;
+        justify-self: stretch;
+        width: auto;
+    }
+
+    .table-picker__link {
+        font-size: 1.5rem;
+    }
+}
+
+a.table-picker__link:hover {
+    border-color: var(--color-primary);
+}
