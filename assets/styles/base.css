@@ -1,5 +1,6 @@
 :root {
-    --color-background: #fffaf0;
+    /* The average colour of the clay texture: what shows until the texture is loaded. */
+    --color-background: #fcf2e1;
     /* A little darker than the background: the bottom of the page fades into it. */
     --color-background-shade: #f2e9d6;
     --color-surface: #ffffff;
@@ -54,6 +55,17 @@ body {
     font-family: var(--font-body);
     font-size: var(--font-size-base);
     line-height: 1.5;
+}
+
+/* The clay texture: one fixed layer behind the page, so it neither repeats nor stretches with the
+   length of the page. The header and footer have no background of their own, to let it show. */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: url('../images/clay-texture.webp') center / cover;
+    pointer-events: none;
 }
 
 /* Components set their own display; the hidden attribute must still win. */

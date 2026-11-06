@@ -1,8 +1,8 @@
 /* Site layout */
 
 /*
- * The header has the colour of the page. The brand is the Scholi logo (a blue cloud); the player is
- * a blue pill. The brand turns into the same kind of pill when the logo can't be loaded.
+ * The header has no background of its own: the page's clay texture shows through. The brand is the
+ * Scholi logo (a blue cloud); the player is a blue pill. The brand turns into the same kind of pill when the logo can't be loaded.
  */
 .site-header {
     display: flex;
@@ -14,7 +14,6 @@
        tablets), the logo and the pill line up with the text below; on a monitor they stay at the
        window's edges. */
     padding: var(--space-2) var(--page-gutter);
-    background-color: var(--color-background);
 }
 
 .site-header__brand,
@@ -35,7 +34,7 @@
     font-weight: 700;
 }
 
-/* The page colour around the pills is light, so the usual amber ring would hardly show there. */
+/* The page around the pills is light, so the usual amber ring would hardly show there. */
 .site-header__brand:focus-visible,
 .site-header__player:focus-visible {
     outline-color: var(--color-text);
@@ -130,14 +129,18 @@
     }
 }
 
-/* The page colour at the top of the footer, a faint shade at the very bottom of the page. */
+/* Clear at the top of the footer, so the texture shows; a faint shade at the very bottom of the page. */
 .site-footer {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
-    background: linear-gradient(to bottom, var(--color-background), var(--color-background-shade));
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        color-mix(in srgb, var(--color-background-shade) 85%, transparent)
+    );
 }
 
 /* The elephant in the bottom right corner of the task selection screens: in the footer, to the

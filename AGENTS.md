@@ -108,7 +108,7 @@ assets/styles/bubble-game.css                # the bubble games: bubbles, timer,
 assets/styles/dialogs.css                    # ready and pause dialogs
 assets/styles/player.css                     # progress badges, player pages, emoji popup
 assets/styles/dictee.css                     # dictee's word bubbles (after bubble-game.css)
-assets/images/                               # logo (header) and elephant mascot (popup; large one on the task selection screens, never in a game or the header)
+assets/images/                               # logo (header), clay texture (page background) and elephant mascot (popup; large one on the task selection screens, never in a game or the header)
 translations/messages.nl.yaml                # all user-facing text
 docs/                                        # per-game mechanics, players, deployment (see "Read before touching")
 bin/generate-dictee-audio.mjs                # dev script: records the dictee words with ElevenLabs
