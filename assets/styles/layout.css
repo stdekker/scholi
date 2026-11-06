@@ -10,7 +10,10 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-1) var(--space-2);
-    padding: var(--space-2);
+    /* The header spans the whole window. Where the page is as wide as the window (phones and
+       tablets), the logo and the pill line up with the text below; on a monitor they stay at the
+       window's edges. */
+    padding: var(--space-2) var(--page-gutter);
     background-color: var(--color-background);
 }
 
@@ -47,11 +50,20 @@
     font-size: 1.75rem;
 }
 
-/* The file is 480 × 234 px: sharp up to about 2.5× pixel density at this size. */
+/*
+ * The file is 480 × 234 px: sharp up to about 2.5× pixel density at this size. It holds the cloud
+ * (387 × 198 px, 54 px from the left and 5 from the top) and the tail of the thought bubble, which
+ * hangs out at the bottom left. The negative margins cut the layout box down to the cloud: the tail
+ * hangs outside it, so it doesn't make the header taller, and the cloud lines up with the page text.
+ */
 .site-header__logo {
+    --logo-height: 5.5rem;
+
     display: block;
-    height: 5.5rem;
+    height: var(--logo-height);
     width: auto;
+    margin-block: calc(var(--logo-height) * -5 / 234) calc(var(--logo-height) * -31 / 234);
+    margin-inline: calc(var(--logo-height) * -54 / 234) calc(var(--logo-height) * -39 / 234);
 }
 
 /* The stats sit after the name, set apart by a thin line. If the header has to wrap on a narrow
@@ -92,11 +104,10 @@
     /* A smaller logo and pill, so both fit on one line at 360 px wide. */
     .site-header {
         column-gap: var(--space-1);
-        padding-inline: var(--space-1);
     }
 
     .site-header__logo {
-        height: 3.5rem;
+        --logo-height: 3.5rem;
     }
 
     .site-header__brand--text {
@@ -232,9 +243,9 @@
     flex: 1 0 auto;
     box-sizing: border-box;
     width: 100%;
-    max-width: 60rem;
+    max-width: var(--page-width);
     margin-inline: auto;
-    padding: var(--space-3) var(--space-2);
+    padding: var(--space-3) var(--page-gutter);
 }
 
 /* Page title (subject or game name): smaller on phones so it fits next to the content. */
@@ -245,12 +256,8 @@ h1 {
 }
 
 @media (min-width: 40rem) {
-    .site-header {
-        padding-inline: var(--space-3);
-    }
-
     .site-main {
-        padding: var(--space-4) var(--space-3);
+        padding-block: var(--space-4);
     }
 
     h1 {

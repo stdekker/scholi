@@ -61,6 +61,6 @@ It has the colour of the page (the footer fades into a faint shade at the very b
 
 ## Images
 
-- `assets/images/scholi-logo.webp`: the Scholi logo (480×234, transparent) in the header; the link falls back to a blue pill with the text.
+- `assets/images/scholi-logo.webp`: the Scholi logo (480×234, transparent) in the header; negative margins in `.site-header__logo` cut its layout box down to the cloud, so the thought bubble's tail hangs outside the header's height and the cloud lines up with the page text (change the margins when the file changes); the link falls back to a blue pill with the text.
 - `assets/images/scholi-mascot.webp`: the blue elephant mascot (192×192, transparent) in the "Meer over Scholi" popup.
 - `assets/images/scholi-mascot-large.webp`: the same at 384×384, bottom right of every task selection screen (never in a game, never in the header). Fixed in the corner of the window on a monitor (≥ 90rem, beside the page column), in the footer on smaller screens. A page opts in by setting `mascot` to true.

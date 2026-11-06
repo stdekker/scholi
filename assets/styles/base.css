@@ -25,6 +25,16 @@
 
     --radius: 1rem;
     --touch-target: 3rem;
+
+    /* The page column and the space beside its text. The header uses the same gutter. */
+    --page-width: 60rem;
+    --page-gutter: var(--space-2);
+}
+
+@media (min-width: 40rem) {
+    :root {
+        --page-gutter: var(--space-3);
+    }
 }
 
 *,
