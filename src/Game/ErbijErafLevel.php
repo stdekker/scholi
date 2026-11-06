@@ -10,6 +10,9 @@ namespace App\Game;
  */
 enum ErbijErafLevel: int
 {
+    use HasNextCase;
+    use HasSlug;
+
     case Tot10 = 1;
     case Tot20 = 2;
     case Tot20Brug = 3;
@@ -19,25 +22,6 @@ enum ErbijErafLevel: int
 
     /** Route requirement matching slug(). */
     public const string SLUG_PATTERN = 'tot-10|tot-20|tot-20-brug|tientallen|tot-100|tot-100-brug';
-
-    public static function fromSlug(string $slug): ?self
-    {
-        foreach (self::cases() as $level) {
-            if ($level->slug() === $slug) {
-                return $level;
-            }
-        }
-
-        return null;
-    }
-
-    /** The next case in order, recommended after passing this one; null after the last. */
-    public function next(): ?self
-    {
-        $cases = self::cases();
-
-        return $cases[array_search($this, $cases, true) + 1] ?? null;
-    }
 
     public function slug(): string
     {
@@ -49,12 +33,6 @@ enum ErbijErafLevel: int
             self::Tot100 => 'tot-100',
             self::Tot100Brug => 'tot-100-brug',
         };
-    }
-
-    /** Translation keys live under game.rekenen.erbij_eraf.levels.<key>. */
-    public function key(): string
-    {
-        return str_replace('-', '_', $this->slug());
     }
 
     /** One minute up to tientallen; the two "tot 100" levels get two. */

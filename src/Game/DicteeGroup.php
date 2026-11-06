@@ -11,31 +11,16 @@ namespace App\Game;
  */
 enum DicteeGroup: int
 {
+    use HasSlug;
+
     case Groep6 = 6;
     case Groep8 = 8;
 
     /** Route requirement matching slug(). */
     public const string SLUG_PATTERN = 'groep-6|groep-8';
 
-    public static function fromSlug(string $slug): ?self
-    {
-        foreach (self::cases() as $group) {
-            if ($group->slug() === $slug) {
-                return $group;
-            }
-        }
-
-        return null;
-    }
-
     public function slug(): string
     {
         return 'groep-'.$this->value;
-    }
-
-    /** Translation keys live under game.taal.dictee.groups.<key>. */
-    public function key(): string
-    {
-        return 'groep_'.$this->value;
     }
 }

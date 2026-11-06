@@ -94,20 +94,6 @@ final class DicteeTest extends TestCase
         self::assertFalse(Game::Dictee->isPassed(61, 180_001));
     }
 
-    public function testSlugsMatchTheRoutePatterns(): void
-    {
-        foreach (DicteeGroup::cases() as $group) {
-            self::assertMatchesRegularExpression('/^(?:'.DicteeGroup::SLUG_PATTERN.')$/', $group->slug());
-            self::assertSame($group, DicteeGroup::fromSlug($group->slug()));
-        }
-        foreach (DicteeLevel::cases() as $level) {
-            self::assertMatchesRegularExpression('/^(?:'.DicteeLevel::SLUG_PATTERN.')$/', $level->slug());
-            self::assertSame($level, DicteeLevel::fromSlug($level->slug()));
-        }
-        self::assertNull(DicteeGroup::fromSlug('groep-5'));
-        self::assertNull(DicteeLevel::fromSlug('raden'));
-    }
-
     /**
      * @return iterable<string, array{DicteeLevel, string}>
      */

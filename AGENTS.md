@@ -83,7 +83,7 @@ src/Controller/Game/DicteeController.php     # /taal/dictee – picker, game, re
 src/Controller/Game/AbstractBubbleGameController.php  # shared: progress, storing a round, layout variables
 src/Controller/PlayerController.php          # /speler, /speler/nieuw, /speler/{token}
 src/Entity/, src/Repository/                 # Doctrine: Player, GameResult
-src/Game/                                    # server-side game rules (Game enum, Tafels, TafelsMix, ErbijEraf*, Dictee*, dictee_words.json), LevelProgress, RoundTime, input DTO
+src/Game/                                    # server-side game rules (Game enum, Tafels, TafelsMix, ErbijEraf*, Dictee*, dictee_words.json), LevelProgress, RoundTime, input DTO; enum traits HasSlug (fromSlug, key) and HasNextCase (next). A slugged enum's SLUG_PATTERN must match its slugs: add it to tests/Unit/Game/SlugTest.php
 src/Security/                                # player link token, cookie, authenticator, signed guest progress cookie
 src/Player/                                  # FunNameGenerator, GuestProgress
 src/Migrations/                              # Doctrine migrations

@@ -11,6 +11,9 @@ namespace App\Game;
  */
 enum DicteeLevel: int
 {
+    use HasNextCase;
+    use HasSlug;
+
     case Copy = 1;
     case Partial = 2;
     case Blanks = 3;
@@ -18,25 +21,6 @@ enum DicteeLevel: int
 
     /** Route requirement matching slug(). */
     public const string SLUG_PATTERN = 'overschrijven|aanvullen|streepjes|zonder-hulp';
-
-    public static function fromSlug(string $slug): ?self
-    {
-        foreach (self::cases() as $level) {
-            if ($level->slug() === $slug) {
-                return $level;
-            }
-        }
-
-        return null;
-    }
-
-    /** The next case in order, recommended after passing this one; null after the last. */
-    public function next(): ?self
-    {
-        $cases = self::cases();
-
-        return $cases[array_search($this, $cases, true) + 1] ?? null;
-    }
 
     public function slug(): string
     {
@@ -46,12 +30,6 @@ enum DicteeLevel: int
             self::Blanks => 'streepjes',
             self::Hidden => 'zonder-hulp',
         };
-    }
-
-    /** Translation keys live under game.taal.dictee.levels.<key>. */
-    public function key(): string
-    {
-        return str_replace('-', '_', $this->slug());
     }
 
     /**

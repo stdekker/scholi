@@ -14,33 +14,15 @@ namespace App\Game;
  */
 enum TafelsMix: int
 {
+    use HasNextCase;
+    use HasSlug;
+
     case TwoToFive = -5;
     case TwoToTen = 0;
     case TwoToTwelve = -12;
 
     /** Route requirement matching slug(). */
     public const string SLUG_PATTERN = '2-tot-(?:5|10|12)';
-
-    public static function fromSlug(string $slug): ?self
-    {
-        foreach (self::cases() as $mix) {
-            if ($mix->slug() === $slug) {
-                return $mix;
-            }
-        }
-
-        return null;
-    }
-
-    /** The mix to recommend after passing this one; null after the last. */
-    public function next(): ?self
-    {
-        return match ($this) {
-            self::TwoToFive => self::TwoToTen,
-            self::TwoToTen => self::TwoToTwelve,
-            self::TwoToTwelve => null,
-        };
-    }
 
     public function slug(): string
     {
