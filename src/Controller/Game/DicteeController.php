@@ -9,6 +9,7 @@ use App\Game\Dictee;
 use App\Game\DicteeGroup;
 use App\Game\DicteeLevel;
 use App\Game\Game;
+use App\Game\NextLevelLink;
 use App\Game\RoundResultInput;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,16 +31,11 @@ final class DicteeController extends AbstractBubbleGameController
     #[Route('/taal/dictee', name: 'app_game_taal_dictee', methods: ['GET'])]
     public function index(Request $request, #[CurrentUser] ?Player $player = null): Response
     {
-        [$progress, $invalidCookie] = $this->progress($request, $player, Game::Dictee);
-
-        $response = $this->render('game/taal/dictee/index.html.twig', [
+        return $this->renderPicker($request, $player, Game::Dictee, 'game/taal/dictee/index.html.twig', [
             'groups' => DicteeGroup::cases(),
             'group' => DicteeGroup::fromSlug('groep-'.$request->query->getString('groep')) ?? DicteeGroup::cases()[0],
             'grid' => Dictee::grid(),
-            'progress' => $progress,
         ]);
-
-        return $this->clearInvalidCookie($request, $response, $invalidCookie);
     }
 
     #[Route('/taal/dictee/{group}/{level}', name: 'app_game_taal_dictee_spel', requirements: self::REQUIREMENTS, methods: ['GET'])]
@@ -76,23 +72,21 @@ final class DicteeController extends AbstractBubbleGameController
 
     /**
      * The next level of the same groep, recommended after passing this one; none after the last.
-     *
-     * @return array{url: string, title: TranslatableMessage}|null
      */
-    private function next(DicteeGroup $group, DicteeLevel $level): ?array
+    private function next(DicteeGroup $group, DicteeLevel $level): ?NextLevelLink
     {
         $next = $level->next();
         if (null === $next) {
             return null;
         }
 
-        return [
-            'url' => $this->generateUrl('app_game_taal_dictee_spel', ['group' => $group->slug(), 'level' => $next->slug()]),
-            'title' => new TranslatableMessage('game.taal.dictee.title', [
+        return new NextLevelLink(
+            $this->generateUrl('app_game_taal_dictee_spel', ['group' => $group->slug(), 'level' => $next->slug()]),
+            new TranslatableMessage('game.taal.dictee.title', [
                 '%group%' => new TranslatableMessage('game.taal.dictee.groups.'.$group->key()),
                 '%level%' => new TranslatableMessage('game.taal.dictee.levels.'.$next->key().'.name'),
             ]),
-        ];
+        );
     }
 
     /**

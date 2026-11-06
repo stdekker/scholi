@@ -8,6 +8,7 @@ use App\Entity\GameResult;
 use App\Entity\Player;
 use App\Game\Game;
 use App\Game\LevelProgress;
+use App\Game\NextLevelLink;
 use App\Game\RoundResultInput;
 use App\Game\RoundTime;
 use App\Player\GuestProgress;
@@ -18,7 +19,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Translation\TranslatableMessage;
 
 /**
  * What the bubble games' controllers share: reading progress, storing a finished round and the
@@ -50,8 +50,17 @@ abstract class AbstractBubbleGameController extends AbstractController
         return [$guestProgress?->progress($game) ?? [], null === $guestProgress];
     }
 
-    protected function clearInvalidCookie(Request $request, Response $response, bool $invalidCookie): Response
+    /**
+     * Renders a picker page with the player's (or guest's) progress as `progress`, and clears the
+     * guest cookie when it is not valid.
+     *
+     * @param array<string, mixed>|\Closure(array<int, LevelProgress>): array<string, mixed> $vars template variables, or a closure that makes them from the progress
+     */
+    protected function renderPicker(Request $request, ?Player $player, Game $game, string $template, array|\Closure $vars = []): Response
     {
+        [$progress, $invalidCookie] = $this->progress($request, $player, $game);
+        $response = $this->render($template, ['progress' => $progress] + ($vars instanceof \Closure ? $vars($progress) : $vars));
+
         if ($invalidCookie) {
             $response->headers->setCookie($this->guestCookie->clear($request));
         }
@@ -87,12 +96,12 @@ abstract class AbstractBubbleGameController extends AbstractController
     /**
      * Variables the bubble game layout needs besides the game's own texts and values.
      *
-     * @param string                                              $saveUrl '' when the round is not saved
-     * @param array{url: string, title: TranslatableMessage}|null $next    the level recommended after passing
+     * @param string         $saveUrl '' when the round is not saved
+     * @param ?NextLevelLink $next    the level recommended after passing
      *
-     * @return array{time_limit_ms: int, time_limit: string, within_key: string, save_url: string, back_url: string, next: array{url: string, title: TranslatableMessage}|null}
+     * @return array{time_limit_ms: int, time_limit: string, within_key: string, save_url: string, back_url: string, next: ?NextLevelLink}
      */
-    protected function bubbleGame(int $timeLimitMs, string $saveUrl, string $backUrl, ?array $next = null): array
+    protected function bubbleGame(int $timeLimitMs, string $saveUrl, string $backUrl, ?NextLevelLink $next = null): array
     {
         return [
             'time_limit_ms' => $timeLimitMs,

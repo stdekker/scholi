@@ -9,6 +9,7 @@ use App\Game\ErbijEraf;
 use App\Game\ErbijErafLevel;
 use App\Game\ErbijErafOperation;
 use App\Game\Game;
+use App\Game\NextLevelLink;
 use App\Game\RoundResultInput;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,16 +30,11 @@ final class ErbijErafController extends AbstractBubbleGameController
     #[Route('/rekenen/erbij-eraf', name: 'app_game_rekenen_erbij_eraf', methods: ['GET'])]
     public function index(Request $request, #[CurrentUser] ?Player $player = null): Response
     {
-        [$progress, $invalidCookie] = $this->progress($request, $player, Game::ErbijEraf);
-
-        $response = $this->render('game/rekenen/erbij_eraf/index.html.twig', [
+        return $this->renderPicker($request, $player, Game::ErbijEraf, 'game/rekenen/erbij_eraf/index.html.twig', [
             'operations' => ErbijErafOperation::cases(),
             'operation' => ErbijErafOperation::tryFrom($request->query->getString('soort')) ?? ErbijErafOperation::Erbij,
             'grid' => ErbijEraf::grid(),
-            'progress' => $progress,
         ]);
-
-        return $this->clearInvalidCookie($request, $response, $invalidCookie);
     }
 
     #[Route('/rekenen/erbij-eraf/{level}/{operation}', name: 'app_game_rekenen_erbij_eraf_spel', requirements: self::REQUIREMENTS, methods: ['GET'])]
@@ -72,10 +68,8 @@ final class ErbijErafController extends AbstractBubbleGameController
     /**
      * The next level with the same operation; after the last level, the first level of the next
      * operation (erbij → eraf → door elkaar).
-     *
-     * @return array{url: string, title: TranslatableMessage}|null
      */
-    private function next(ErbijErafLevel $level, ErbijErafOperation $operation): ?array
+    private function next(ErbijErafLevel $level, ErbijErafOperation $operation): ?NextLevelLink
     {
         $nextLevel = $level->next();
         $nextOperation = null === $nextLevel ? $operation->next() : $operation;
@@ -84,13 +78,13 @@ final class ErbijErafController extends AbstractBubbleGameController
         }
         $nextLevel ??= ErbijErafLevel::Tot10;
 
-        return [
-            'url' => $this->generateUrl('app_game_rekenen_erbij_eraf_spel', ['level' => $nextLevel->slug(), 'operation' => $nextOperation->value]),
-            'title' => new TranslatableMessage('game.rekenen.erbij_eraf.title', [
+        return new NextLevelLink(
+            $this->generateUrl('app_game_rekenen_erbij_eraf_spel', ['level' => $nextLevel->slug(), 'operation' => $nextOperation->value]),
+            new TranslatableMessage('game.rekenen.erbij_eraf.title', [
                 '%level%' => new TranslatableMessage('game.rekenen.erbij_eraf.levels.'.$nextLevel->key().'.name'),
                 '%operation%' => new TranslatableMessage('game.rekenen.erbij_eraf.operations.'.$nextOperation->key()),
             ]),
-        ];
+        );
     }
 
     /**

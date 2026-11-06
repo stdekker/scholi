@@ -6,6 +6,7 @@ namespace App\Controller\Game;
 
 use App\Entity\Player;
 use App\Game\Game;
+use App\Game\NextLevelLink;
 use App\Game\RoundResultInput;
 use App\Game\Tafels;
 use App\Game\TafelsMix;
@@ -25,14 +26,9 @@ final class TafelsController extends AbstractBubbleGameController
     #[Route('/rekenen/tafels', name: 'app_game_rekenen_tafels', methods: ['GET'])]
     public function index(Request $request, #[CurrentUser] ?Player $player = null): Response
     {
-        [$progress, $invalidCookie] = $this->progress($request, $player, Game::Tafels);
-
-        $response = $this->render('game/rekenen/tafels.html.twig', [
+        return $this->renderPicker($request, $player, Game::Tafels, 'game/rekenen/tafels.html.twig', [
             'tables' => Tafels::tables(),
-            'progress' => $progress,
         ]);
-
-        return $this->clearInvalidCookie($request, $response, $invalidCookie);
     }
 
     #[Route('/rekenen/tafel/{table}', name: 'app_game_rekenen_tafel', requirements: ['table' => Tafels::TABLE_PATTERN], methods: ['GET'])]
@@ -46,10 +42,10 @@ final class TafelsController extends AbstractBubbleGameController
             $this->generateUrl('app_game_rekenen_tafel_result', ['table' => $table]),
             $this->generateUrl('app_game_rekenen_tafels'),
             // After the last table come the mixes.
-            $table < Tafels::MAX_TABLE ? [
-                'url' => $this->generateUrl('app_game_rekenen_tafel', ['table' => $table + 1]),
-                'title' => new TranslatableMessage('game.rekenen.tafels.title', ['%table%' => $table + 1]),
-            ] : $this->nextMix(TafelsMix::TwoToFive),
+            $table < Tafels::MAX_TABLE ? new NextLevelLink(
+                $this->generateUrl('app_game_rekenen_tafel', ['table' => $table + 1]),
+                new TranslatableMessage('game.rekenen.tafels.title', ['%table%' => $table + 1]),
+            ) : $this->nextMix(TafelsMix::TwoToFive),
         ));
     }
 
@@ -57,17 +53,15 @@ final class TafelsController extends AbstractBubbleGameController
     #[Route('/rekenen/alle-tafels', name: 'app_game_rekenen_alle', methods: ['GET'])]
     public function alleTafels(Request $request, #[CurrentUser] ?Player $player = null): Response
     {
-        [$progress, $invalidCookie] = $this->progress($request, $player, Game::Tafels);
-        $practised = Tafels::practisedTables($progress);
+        return $this->renderPicker($request, $player, Game::Tafels, 'game/rekenen/alle_tafels.html.twig', static function (array $progress): array {
+            $practised = Tafels::practisedTables($progress);
 
-        $response = $this->render('game/rekenen/alle_tafels.html.twig', [
-            'mixes' => TafelsMix::cases(),
-            'progress' => $progress,
-            'practised' => $practised,
-            'practised_open' => \count($practised) >= Tafels::MIN_PRACTISED_TABLES,
-        ]);
-
-        return $this->clearInvalidCookie($request, $response, $invalidCookie);
+            return [
+                'mixes' => TafelsMix::cases(),
+                'practised' => $practised,
+                'practised_open' => \count($practised) >= Tafels::MIN_PRACTISED_TABLES,
+            ];
+        });
     }
 
     /** "Geoefende tafels": every table with a finished round. Never saved, its tables change. */
@@ -121,15 +115,12 @@ final class TafelsController extends AbstractBubbleGameController
         return $this->storeResult($request, $player, Game::Tafels, $this->findMix($mix)->value, $input);
     }
 
-    /**
-     * @return array{url: string, title: TranslatableMessage}|null
-     */
-    private function nextMix(?TafelsMix $mix): ?array
+    private function nextMix(?TafelsMix $mix): ?NextLevelLink
     {
-        return null === $mix ? null : [
-            'url' => $this->generateUrl('app_game_rekenen_mix', ['mix' => $mix->slug()]),
-            'title' => new TranslatableMessage('game.rekenen.mixes.range', ['%last%' => $mix->lastTable()]),
-        ];
+        return null === $mix ? null : new NextLevelLink(
+            $this->generateUrl('app_game_rekenen_mix', ['mix' => $mix->slug()]),
+            new TranslatableMessage('game.rekenen.mixes.range', ['%last%' => $mix->lastTable()]),
+        );
     }
 
     private function findMix(string $slug): TafelsMix
@@ -140,7 +131,7 @@ final class TafelsController extends AbstractBubbleGameController
     /**
      * Renders the bubble game: for a single table (table), a fixed mix (mix) or the practised tables.
      *
-     * @param array{table?: int, mix?: TafelsMix, practised?: bool, tables: list<int>, time_limit_ms: int, time_limit: string, within_key: string, save_url: string, back_url: string, next: array{url: string, title: TranslatableMessage}|null} $game
+     * @param array<string, mixed> $game table, mix or practised, tables, and the variables of bubbleGame()
      */
     private function renderGame(array $game): Response
     {

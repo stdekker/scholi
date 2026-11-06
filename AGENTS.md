@@ -80,7 +80,7 @@ src/Controller/Game/<Subject>Controller.php  # a subject's game list, e.g. Reken
 src/Controller/Game/<Game>Controller.php     # one controller per game, e.g. TafelsController, ErbijErafController
 src/Controller/Game/TaalController.php       # /taal – the taal games
 src/Controller/Game/DicteeController.php     # /taal/dictee – picker, game, result
-src/Controller/Game/AbstractBubbleGameController.php  # shared: progress, storing a round, layout variables
+src/Controller/Game/AbstractBubbleGameController.php  # shared: renderPicker() (picker page + progress + stale guest cookie), storing a round, bubbleGame() layout variables; "next level" is a NextLevelLink (src/Game/)
 src/Controller/PlayerController.php          # /speler, /speler/nieuw, /speler/{token}
 src/Entity/, src/Repository/                 # Doctrine: Player, GameResult
 src/Game/                                    # server-side game rules (Game enum, Tafels, TafelsMix, ErbijEraf*, Dictee*, dictee_words.json), LevelProgress, RoundTime, input DTO; enum traits HasSlug (fromSlug, key) and HasNextCase (next). A slugged enum's SLUG_PATTERN must match its slugs: add it to tests/Unit/Game/SlugTest.php
