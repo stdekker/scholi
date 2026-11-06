@@ -27,3 +27,7 @@
 ###> npm (dev tooling) ###
 /node_modules/
 ###< npm (dev tooling) ###
+
+###> dictee recordings (generated: ddev npm run audio:dictee) ###
+/assets/audio/
+###< dictee recordings ###

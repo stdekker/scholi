@@ -356,14 +356,34 @@ final class PlayerControllerTest extends WebTestCase
 
         $client->request('GET', '/speler');
 
-        self::assertSelectorCount(6, '.progress-table tbody tr');
-        self::assertSelectorTextContains('.progress-table thead', 'Erbij');
-        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(3) th', 'Tot 20 met brug');
-        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(3) td:nth-of-type(2) .progress-badge--passed', 'Binnen een minuut! Beste tijd 0:45');
-        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(6) td:nth-of-type(3) .progress-badge--done', 'Gehaald. Beste tijd 2:10');
-        self::assertSelectorTextContains('.progress-table tbody tr:nth-child(1) td:nth-of-type(1)', 'Nog niet geoefend');
-        self::assertSelectorCount(2, '.progress-table .progress-badge');
+        self::assertSelectorCount(6, '#erbij-eraf .progress-table tbody tr');
+        self::assertSelectorTextContains('#erbij-eraf .progress-table thead', 'Erbij');
+        self::assertSelectorTextContains('#erbij-eraf .progress-table tbody tr:nth-child(3) th', 'Tot 20 met brug');
+        self::assertSelectorTextContains('#erbij-eraf .progress-table tbody tr:nth-child(3) td:nth-of-type(2) .progress-badge--passed', 'Binnen een minuut! Beste tijd 0:45');
+        self::assertSelectorTextContains('#erbij-eraf .progress-table tbody tr:nth-child(6) td:nth-of-type(3) .progress-badge--done', 'Gehaald. Beste tijd 2:10');
+        self::assertSelectorTextContains('#erbij-eraf .progress-table tbody tr:nth-child(1) td:nth-of-type(1)', 'Nog niet geoefend');
+        self::assertSelectorCount(2, '#erbij-eraf .progress-table .progress-badge');
         self::assertSelectorExists('a[href="/rekenen/erbij-eraf"]');
+    }
+
+    public function testPlayerPageShowsDicteeProgress(): void
+    {
+        $client = static::createClient();
+        [$player, $token] = $this->createPlayer();
+        $this->addResult($player, 62, 150_000, Game::Dictee);   // groep 6, letters aanvullen
+        $this->addResult($player, 84, 200_000, Game::Dictee);   // groep 8, zonder hulp
+        $this->logIn($client, $token);
+
+        $client->request('GET', '/speler');
+
+        self::assertSelectorCount(4, '#dictee .progress-table tbody tr');
+        self::assertSelectorTextContains('#dictee .progress-table thead', 'Groep 8');
+        self::assertSelectorTextContains('#dictee .progress-table tbody tr:nth-child(2) th', 'Letters aanvullen');
+        self::assertSelectorTextContains('#dictee .progress-table tbody tr:nth-child(2) td:nth-of-type(1) .progress-badge--passed', 'Binnen drie minuten! Beste tijd 2:30');
+        self::assertSelectorTextContains('#dictee .progress-table tbody tr:nth-child(4) td:nth-of-type(2) .progress-badge--done', 'Gehaald. Beste tijd 3:20');
+        self::assertSelectorTextContains('#dictee .progress-table tbody tr:nth-child(1) td:nth-of-type(1)', 'Nog niet geoefend');
+        self::assertSelectorCount(2, '#dictee .progress-badge');
+        self::assertSelectorExists('a[href="/taal/dictee"]');
     }
 
     public function testLogoutForgetsPlayerInThisBrowser(): void

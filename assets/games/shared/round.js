@@ -1,5 +1,6 @@
 /**
- * A round of the bubble games: a list of sums ("tasks") to answer against the clock.
+ * A round of the bubble games: a list of "tasks" to answer against the clock. A task is a sum
+ * (tafels, erbij en eraf) or a word to write (dictee).
  *
  * A task is solved once the pupil enters the right answer; after MAX_ATTEMPTS wrong answers it
  * is frozen instead. The round is complete when every task is solved or frozen, whether or not
@@ -10,7 +11,7 @@
  * The round can be paused (e.g. while asking whether to stop): paused time doesn't count.
  *
  * Pure ES module: no DOM access, no bare (importmap) imports, time injected.
- * The DOM wiring lives in assets/controllers/bubble_game.js; each game only supplies the sums.
+ * The DOM wiring lives in assets/controllers/bubble_game.js; each game only supplies the tasks.
  */
 
 /** Wrong answers after which a bubble freezes. */
@@ -27,15 +28,23 @@ export const READY_COUNTDOWN_SECONDS = 3;
  */
 
 /**
- * @typedef {object} Task
- * @property {number} id
- * @property {number} left
- * @property {Operator} operator
- * @property {number} right
- * @property {number} answer
- * @property {boolean} solved
- * @property {number} wrongAttempts
- * @property {boolean} frozen true after MAX_ATTEMPTS wrong answers
+ * What a game asks: any object with the answer, plus whatever the game needs to show it.
+ *
+ * @typedef {object} TaskItem
+ * @property {number | string} answer
+ */
+
+/**
+ * A task in a round: the game's own item (a sum's left, operator and right; a word's hint …)
+ * plus the state of the pupil's attempts.
+ *
+ * @typedef {TaskItem & {
+ *   id: number,
+ *   solved: boolean,
+ *   wrongAttempts: number,
+ *   frozen: boolean,
+ * }} Task
+ * frozen is true after MAX_ATTEMPTS wrong answers.
  */
 
 /**
@@ -74,17 +83,29 @@ export function answerOf({ left, operator, right }) {
  * @returns {Round}
  */
 export function createRound(sums, timeLimitMs) {
-    if (sums.length === 0) {
-        throw new RangeError('A round needs at least one sum');
+    return createTaskRound(
+        sums.map((sum) => ({ ...sum, answer: answerOf(sum) })),
+        timeLimitMs,
+    );
+}
+
+/**
+ * Creates a new round with one task per item, in the given order. For games whose tasks are not
+ * sums: the items carry their own answer.
+ *
+ * @param {TaskItem[]} items at least one
+ * @param {number} timeLimitMs
+ * @returns {Round}
+ */
+export function createTaskRound(items, timeLimitMs) {
+    if (items.length === 0) {
+        throw new RangeError('A round needs at least one task');
     }
 
     return {
-        tasks: sums.map(({ left, operator, right }, index) => ({
+        tasks: items.map((item, index) => ({
+            ...item,
             id: index + 1,
-            left,
-            operator,
-            right,
-            answer: answerOf({ left, operator, right }),
             solved: false,
             wrongAttempts: 0,
             frozen: false,
@@ -97,7 +118,8 @@ export function createRound(sums, timeLimitMs) {
 }
 
 /**
- * Whether `input` is exactly the right answer. Only plain digits are accepted.
+ * Whether `input` is exactly the right answer of a sum. Only plain digits are accepted.
+ * (Games with other answers check them themselves, e.g. checkWord() in games/taal/dictee.js.)
  *
  * @param {Task} task
  * @param {string} input

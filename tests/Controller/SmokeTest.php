@@ -37,5 +37,10 @@ final class SmokeTest extends WebTestCase
         yield 'erbij en eraf' => ['/rekenen/erbij-eraf'];
         yield 'tot 10 erbij' => ['/rekenen/erbij-eraf/tot-10/erbij'];
         yield 'tot 100 met brug door elkaar' => ['/rekenen/erbij-eraf/tot-100-brug/door-elkaar'];
+        yield 'taal' => ['/taal'];
+        yield 'dictee' => ['/taal/dictee'];
+        yield 'dictee groep 8' => ['/taal/dictee?groep=8'];
+        yield 'dictee groep 6 overschrijven' => ['/taal/dictee/groep-6/overschrijven'];
+        yield 'dictee groep 8 zonder hulp' => ['/taal/dictee/groep-8/zonder-hulp'];
     }
 }

@@ -1,14 +1,33 @@
 {% extends 'base.html.twig' %}
 
 {#
-    Layout of the bubble games (tafels, erbij en eraf). A game page extends it and sets:
+    Layout of the bubble games (tafels, erbij en eraf, dictee). A game page extends it and sets:
     - controller: Stimulus identifier of the game, extending assets/controllers/bubble_game.js
     - values: its own Stimulus values, keyed by kebab-case name (arrays become JSON)
     - title, intro, passed_message, back_label: translated texts
     - time_limit_ms, time_limit (m:ss), save_url ('' = not saved), back_url
     - next: {url, title} of the level recommended after passing, or null
+    Optional, for games whose tasks are not sums (dictee):
+    - modifier: BEM modifier of .bubble-game (words)
+    - text_keys: translation keys that replace the texts about "sommen" (see texts below)
+    - keypad: false when the answer is typed on the keyboard: the dock then only has the OK button
+    - answer_max_length: longest answer (3 by default)
+    - replay_label: shows a button with this text that plays the open task again
 #}
 {% set c = controller %}
+{% set keypad = keypad is defined ? keypad : true %}
+{# Translation keys of the texts that name the tasks; a game with other tasks replaces them (text_keys). #}
+{% set texts = {
+    answer: 'game.bubbles.answer',
+    correct: 'game.bubbles.correct',
+    frozen: 'game.bubbles.frozen',
+    revealed_label: 'game.bubbles.revealed_label',
+    done_frozen: 'game.bubbles.done_frozen',
+    done_late: 'game.bubbles.done_late',
+    remaining: 'game.bubbles.remaining',
+    ready: 'game.bubbles.ready.text',
+    time_up: 'game.bubbles.timer.up',
+}|merge(text_keys|default({})) %}
 
 {% block title %}{{ title }} – {{ parent() }}{% endblock %}
 
@@ -18,7 +37,7 @@
 {% endblock %}
 
 {% block body %}
-    <section class="bubble-game"
+    <section class="bubble-game{% if modifier is defined %} bubble-game--{{ modifier }}{% endif %}"
         data-controller="{{ c }}"
         {%- for name, value in values %}
         data-{{ c }}-{{ name }}-value="{{ value is iterable ? value|json_encode : value }}"
@@ -27,11 +46,11 @@
         data-{{ c }}-save-url-value="{{ save_url }}"
         data-{{ c }}-practice-url-value="{{ path('app_practice') }}"
         data-{{ c }}-sum-labels-value="{{ {plus: 'game.bubbles.sum_label.plus'|trans, min: 'game.bubbles.sum_label.min'|trans, keer: 'game.bubbles.sum_label.keer'|trans}|json_encode }}"
-        data-{{ c }}-correct-value="{{ 'game.bubbles.correct'|trans }}"
+        data-{{ c }}-correct-value="{{ texts.correct|trans }}"
         data-{{ c }}-try-again-value="{{ 'game.bubbles.try_again'|trans }}"
-        data-{{ c }}-frozen-value="{{ 'game.bubbles.frozen'|trans }}"
+        data-{{ c }}-frozen-value="{{ texts.frozen|trans }}"
         data-{{ c }}-frozen-label-value="{{ 'game.bubbles.frozen_label'|trans }}"
-        data-{{ c }}-revealed-label-value="{{ 'game.bubbles.revealed_label'|trans }}"
+        data-{{ c }}-revealed-label-value="{{ texts.revealed_label|trans }}"
         data-{{ c }}-duration-value="{{ 'game.bubbles.duration.text'|trans }}"
         data-{{ c }}-duration-texts-value="{{ {
             secondsOne: 'game.bubbles.duration.seconds_one'|trans,
@@ -40,9 +59,9 @@
             minutesMany: 'game.bubbles.duration.minutes_many'|trans,
             both: 'game.bubbles.duration.both'|trans,
         }|json_encode }}"
-        data-{{ c }}-done-frozen-value="{{ 'game.bubbles.done_frozen'|trans }}"
-        data-{{ c }}-remaining-value="{{ 'game.bubbles.remaining'|trans }}"
-        data-{{ c }}-time-up-value="{{ 'game.bubbles.timer.up'|trans }}"
+        data-{{ c }}-done-frozen-value="{{ texts.done_frozen|trans }}"
+        data-{{ c }}-remaining-value="{{ texts.remaining|trans }}"
+        data-{{ c }}-time-up-value="{{ texts.time_up|trans }}"
         data-{{ c }}-go-value="{{ 'game.bubbles.ready.go'|trans }}"
         data-action="keydown@window->{{ c }}#typeAnywhere click@document->{{ c }}#confirmLeave"
     >
@@ -55,7 +74,7 @@
                 <span class="ready-dialog__time-label">{{ 'game.bubbles.timer.label'|trans }}</span>
                 <span data-{{ c }}-target="readyTime">{{ time_limit }}</span>
             </p>
-            <p>{{ 'game.bubbles.ready.text'|trans }}</p>
+            <p>{{ texts.ready|trans }}</p>
             <button type="button" class="action-button ready-dialog__button"
                 data-{{ c }}-target="readyButton" data-action="{{ c }}#ready">
                 {{ 'game.bubbles.ready.button'|trans }}
@@ -102,6 +121,9 @@
         <template data-{{ c }}-target="bubbleTemplate">
             <li class="bubble">
                 <button type="button" class="bubble__sum" data-action="{{ c }}#open">
+                    {% if replay_label is defined %}
+                        <span class="bubble__speaker" aria-hidden="true">🔊</span>
+                    {% endif %}
                     <span class="bubble__question"></span>
                     <span class="bubble__placeholder" aria-hidden="true">…</span>
                     {# Shown on a frozen bubble, so freezing isn't shown by colour alone. #}
@@ -109,10 +131,17 @@
                     {# Filled in by the controller when the round is over. #}
                     <span class="bubble__solution"></span>
                 </button>
-                <input type="text" class="bubble__answer"
-                    inputmode="none" maxlength="3" autocomplete="off"
-                    aria-label="{{ 'game.bubbles.answer'|trans }}"
+                {# Autocorrect and spellcheck off: they could give the answer away or fix it for the pupil. #}
+                <input type="text" class="bubble__answer{% if not keypad %} bubble__answer--word{% endif %}"
+                    inputmode="{{ keypad ? 'none' : 'text' }}" maxlength="{{ answer_max_length|default(3) }}"
+                    autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                    aria-label="{{ texts.answer|trans }}"
                     data-action="input->{{ c }}#typed keydown->{{ c }}#keydown" hidden>
+                {% if replay_label is defined %}
+                    <button type="button" class="bubble__replay" data-action="{{ c }}#replay">
+                        <span aria-hidden="true">🔊</span> {{ replay_label }}
+                    </button>
+                {% endif %}
             </li>
         </template>
 
@@ -120,20 +149,22 @@
         <div class="bubble-game__dock">
             <p class="bubble-game__status" role="status" data-{{ c }}-target="status"></p>
 
-            <div class="keypad" data-{{ c }}-target="keypad" hidden>
-                {% for digit in [1, 2, 3, 4, 5, 6, 7, 8, 9] %}
-                    <button type="button" class="keypad__key" data-action="{{ c }}#press" data-{{ c }}-digit-param="{{ digit }}">{{ digit }}</button>
-                {% endfor %}
-                <button type="button" class="keypad__key keypad__key--erase" data-action="{{ c }}#erase"
-                    aria-label="{{ 'game.bubbles.keypad.erase'|trans }}">⌫</button>
-                <button type="button" class="keypad__key" data-action="{{ c }}#press" data-{{ c }}-digit-param="0">0</button>
+            <div class="keypad{% if not keypad %} keypad--check-only{% endif %}" data-{{ c }}-target="keypad" hidden>
+                {% if keypad %}
+                    {% for digit in [1, 2, 3, 4, 5, 6, 7, 8, 9] %}
+                        <button type="button" class="keypad__key" data-action="{{ c }}#press" data-{{ c }}-digit-param="{{ digit }}">{{ digit }}</button>
+                    {% endfor %}
+                    <button type="button" class="keypad__key keypad__key--erase" data-action="{{ c }}#erase"
+                        aria-label="{{ 'game.bubbles.keypad.erase'|trans }}">⌫</button>
+                    <button type="button" class="keypad__key" data-action="{{ c }}#press" data-{{ c }}-digit-param="0">0</button>
+                {% endif %}
                 <button type="button" class="keypad__key keypad__key--check" data-action="{{ c }}#submit">{{ 'game.bubbles.keypad.check'|trans }}</button>
             </div>
         </div>
 
         <div class="round-complete" data-{{ c }}-target="complete" hidden>
             <p class="round-complete__message" data-{{ c }}-target="passedMessage">{{ passed_message }}</p>
-            <p class="round-complete__message" data-{{ c }}-target="lateMessage" hidden>{{ 'game.bubbles.done_late'|trans }}</p>
+            <p class="round-complete__message" data-{{ c }}-target="lateMessage" hidden>{{ texts.done_late|trans }}</p>
             <p class="round-complete__message" data-{{ c }}-target="frozenMessage" hidden></p>
             {# "Je deed het dit keer in 41 seconden.", filled in by the controller. #}
             <p class="round-complete__duration" data-{{ c }}-target="durationMessage" hidden></p>

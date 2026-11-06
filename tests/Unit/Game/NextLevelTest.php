@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Game;
 
+use App\Game\DicteeLevel;
 use App\Game\ErbijErafLevel;
 use App\Game\ErbijErafOperation;
 use App\Game\TafelsMix;
@@ -30,5 +31,13 @@ final class NextLevelTest extends TestCase
         self::assertSame(ErbijErafOperation::Eraf, ErbijErafOperation::Erbij->next());
         self::assertSame(ErbijErafOperation::DoorElkaar, ErbijErafOperation::Eraf->next());
         self::assertNull(ErbijErafOperation::DoorElkaar->next());
+    }
+
+    public function testDicteeLevelsShowLessAndLessOfTheWord(): void
+    {
+        self::assertSame(DicteeLevel::Partial, DicteeLevel::Copy->next());
+        self::assertSame(DicteeLevel::Blanks, DicteeLevel::Partial->next());
+        self::assertSame(DicteeLevel::Hidden, DicteeLevel::Blanks->next());
+        self::assertNull(DicteeLevel::Hidden->next());
     }
 }

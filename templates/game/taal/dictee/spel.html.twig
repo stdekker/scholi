@@ -1,0 +1,38 @@
+{% extends 'game/bubble_game.html.twig' %}
+
+{#
+    One round of dictee: ten words of one groep (group) and level. The words are spoken by
+    recordings served from this site (audio_paths: logical AssetMapper paths, keyed by word).
+#}
+{% set controller = 'dictee' %}
+{% set modifier = 'words' %}
+{% set keypad = false %}
+{% set replay_label = 'game.taal.dictee.replay'|trans %}
+{% set text_keys = {
+    answer: 'game.taal.dictee.bubbles.answer',
+    correct: 'game.taal.dictee.bubbles.correct',
+    frozen: 'game.taal.dictee.bubbles.frozen',
+    revealed_label: 'game.taal.dictee.bubbles.revealed_label',
+    done_frozen: 'game.taal.dictee.bubbles.done_frozen',
+    done_late: 'game.taal.dictee.bubbles.done_late',
+    remaining: 'game.taal.dictee.bubbles.remaining',
+    ready: 'game.taal.dictee.bubbles.ready',
+    time_up: 'game.taal.dictee.bubbles.time_up',
+} %}
+{% set values = {
+    mode: level.mode,
+    audio: audio_paths|map(path => asset(path)),
+    'answer-max-length': answer_max_length,
+    'word-label': 'game.taal.dictee.word_label'|trans,
+    'word-label-hint': 'game.taal.dictee.word_label_hint'|trans,
+    'blank-label': 'game.taal.dictee.blank_label'|trans,
+    'audio-failed': 'game.taal.dictee.audio_failed'|trans,
+} %}
+{% set within = within_key|trans %}
+{% set title = 'game.taal.dictee.title'|trans({
+    '%group%': ('game.taal.dictee.groups.' ~ group.key)|trans,
+    '%level%': ('game.taal.dictee.levels.' ~ level.key ~ '.name')|trans,
+}) %}
+{% set intro = 'game.taal.dictee.intro'|trans({'%within%': within}) %}
+{% set passed_message = 'game.taal.dictee.done'|trans({'%within%': within}) %}
+{% set back_label = 'game.taal.dictee.other'|trans %}

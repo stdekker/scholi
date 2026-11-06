@@ -42,6 +42,7 @@ game:
         within:
             one_minute: een minuut
             two_minutes: twee minuten
+            three_minutes: drie minuten
         ready:
             title: Ben je er klaar voor?
             text: Maak alle sommen binnen de tijd.
@@ -130,6 +131,54 @@ game:
             intro: 'Tien sommen. Klik op een som en typ het antwoord. Lukt het binnen %within%?'
             done: 'Helemaal goed! Je hebt alle sommen sneller dan %within% gemaakt.'
             other: Ander niveau
+    taal:
+        title: Taal
+        description: Woorden beluisteren en opschrijven.
+        intro: Wat wil je oefenen?
+        back: Ander spel
+        dictee:
+            name: Dictee
+            description: Luister naar een woord en schrijf het op.
+            picker_intro: Je hoort tien woorden. Schrijf ze op!
+            choose_group: Kies je groep
+            choose_level: Kies je niveau
+            groups:
+                groep_6: Groep 6
+                groep_8: Groep 8
+            levels:
+                overschrijven:
+                    name: Overschrijven
+                    description: Je ziet het hele woord.
+                aanvullen:
+                    name: Letters aanvullen
+                    description: Een deel van de letters ontbreekt.
+                streepjes:
+                    name: Streepjes
+                    description: Je ziet alleen een streepje voor elke letter.
+                zonder_hulp:
+                    name: Zonder hulp
+                    description: Je hoort het woord en ziet niets.
+            title: 'Dictee %group%: %level%'
+            intro: 'Tien woorden. Klik op een woord, luister goed en schrijf het op. Lukt het binnen %within%?'
+            done: 'Helemaal goed! Je hebt alle woorden binnen %within% opgeschreven.'
+            other: Ander niveau
+            replay: Luister nog eens
+            audio_failed: Het geluid werkt niet. Zet je geluid aan en probeer het nog eens.
+            # Screen-reader label of a bubble: "Woord 3: k, leeg, t" (the hint says every letter or "leeg").
+            word_label: 'Woord %number%'
+            word_label_hint: 'Woord %number%: %hint%'
+            blank_label: leeg
+            # Replace the texts of game.bubbles that talk about sommen.
+            bubbles:
+                answer: Schrijf het woord
+                correct: 'Goed zo! Het woord is %answer%.'
+                frozen: Oei, dit woord is bevroren. Ga verder met een ander woord!
+                revealed_label: '%label%: het woord is %answer%'
+                done_frozen: 'Je hebt %solved% van de %total% woorden goed geschreven. Oefen nog even en probeer het opnieuw!'
+                done_late: Je hebt alle woorden geschreven. Iets sneller de volgende keer!
+                remaining: 'Woorden over: %count%'
+                ready: Zet je geluid aan. Luister goed naar elk woord en schrijf het op.
+                time_up: De tijd is om! Schrijf de woorden rustig af.
 
 player:
     header:
@@ -164,12 +213,13 @@ player:
     progress:
         title: Jouw tafels
         not_yet: Nog niet geoefend
-        passed: 'Binnen een minuut! Beste tijd %time%'
-        passed_two_minutes: 'Binnen twee minuten! Beste tijd %time%'
+        passed: 'Binnen %within%! Beste tijd %time%'
         done: 'Gehaald. Beste tijd %time%'
         play: Tafels oefenen
         erbij_eraf_title: Jouw erbij en eraf
         erbij_eraf_play: Erbij en eraf oefenen
+        dictee_title: Jouw dictee
+        dictee_play: Dictee oefenen
         level: Niveau
     logout:
         title: Uitloggen

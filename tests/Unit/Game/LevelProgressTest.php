@@ -34,7 +34,7 @@ final class LevelProgressTest extends TestCase
         self::assertEquals(new LevelProgress(3, 70_000, false, 60_000), $progress[3]);
         self::assertEquals(new LevelProgress(7, 55_000, true, 60_000), $progress[7]);
         self::assertSame('0:55', $progress[7]->bestTime());
-        self::assertFalse($progress[7]->hasTwoMinutes());
+        self::assertSame('game.bubbles.within.one_minute', $progress[7]->withinKey());
     }
 
     public function testNoResultsMeansNoProgress(): void

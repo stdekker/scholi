@@ -8,6 +8,7 @@ use App\Entity\GameResult;
 use App\Entity\Player;
 use App\Entity\PracticeDay;
 use App\Form\PlayerType;
+use App\Game\Dictee;
 use App\Game\ErbijEraf;
 use App\Game\Game;
 use App\Game\Tafels;
@@ -64,6 +65,8 @@ final class PlayerController extends AbstractController
             'progress' => $results->progressFor($player, Game::Tafels),
             'erbij_eraf_grid' => ErbijEraf::grid(),
             'erbij_eraf_progress' => $results->progressFor($player, Game::ErbijEraf),
+            'dictee_grid' => Dictee::grid(),
+            'dictee_progress' => $results->progressFor($player, Game::Dictee),
             'practice_minutes' => PracticeTime::minutes($practiceDays->secondsInWindow($player)),
         ]);
     }

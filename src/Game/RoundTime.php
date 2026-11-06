@@ -11,6 +11,7 @@ final class RoundTime
 {
     public const int ONE_MINUTE_MS = 60_000;
     public const int TWO_MINUTES_MS = 120_000;
+    public const int THREE_MINUTES_MS = 180_000;
 
     /**
      * Formats milliseconds as m:ss, rounding up (mirrors formatTime() in assets/games/shared/format.js).
@@ -23,10 +24,15 @@ final class RoundTime
     }
 
     /**
-     * Translation key that finishes "binnen …" for a time limit: "een minuut" or "twee minuten".
+     * Translation key that finishes "binnen …" for a time limit: "een minuut", "twee minuten" or
+     * "drie minuten".
      */
     public static function withinKey(int $timeLimitMs): string
     {
-        return $timeLimitMs > self::ONE_MINUTE_MS ? 'game.bubbles.within.two_minutes' : 'game.bubbles.within.one_minute';
+        return match (true) {
+            $timeLimitMs > self::TWO_MINUTES_MS => 'game.bubbles.within.three_minutes',
+            $timeLimitMs > self::ONE_MINUTE_MS => 'game.bubbles.within.two_minutes',
+            default => 'game.bubbles.within.one_minute',
+        };
     }
 }

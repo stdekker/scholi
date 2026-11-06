@@ -400,7 +400,9 @@ h1 {
 /* Erbij en eraf: erbij / eraf / door elkaar as one row of large toggle links above the levels. */
 .operation-switch {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* One column per choice: three for erbij / eraf / door elkaar, two for the groepen of dictee. */
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: var(--space-1);
     margin: 0 0 var(--space-3);
     padding: 0;
@@ -441,7 +443,8 @@ h1 {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .table-picker--mixes {
+    .table-picker--mixes,
+    .table-picker--pairs {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -1212,4 +1215,90 @@ a.table-picker__link:hover {
 .round-complete__note {
     margin: 0;
     font-size: 1.1rem;
+}
+
+/* Dictee: words instead of sums. A word needs more room than a sum, so its bubbles are wide and
+   rounded rather than circles. */
+.bubble-game--words .bubble {
+    width: min(100%, 11rem);
+    height: auto;
+    min-height: 8rem;
+    padding: var(--space-1);
+    border-radius: 2.5rem;
+}
+
+.bubble-game--words .bubble__sum {
+    border-radius: 2rem;
+}
+
+.bubble-game--words .bubble__placeholder {
+    display: none;
+}
+
+.bubble-game--words .bubble--active {
+    width: min(100%, 22rem);
+    scale: 1.05;
+}
+
+.bubble__speaker {
+    font-size: 1.5rem;
+    line-height: 1.2;
+}
+
+.bubble--active .bubble__speaker,
+.bubble--frozen .bubble__speaker {
+    display: none;
+}
+
+/* What is shown of the word: a cell per letter, an underlined empty cell for a blank. */
+.bubble-game--words .bubble__question {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.1em 0.2em;
+    max-width: 100%;
+    font-size: 1.4rem;
+}
+
+.bubble__letter {
+    min-width: 0.7em;
+    text-align: center;
+}
+
+.bubble__letter--blank {
+    border-block-end: 3px solid currentColor;
+}
+
+.bubble__answer--word {
+    width: min(100%, 16rem);
+    margin-block-end: var(--space-1);
+    font-size: 1.4rem;
+    letter-spacing: 0.08em;
+}
+
+/* "Luister nog eens": only on the open bubble. */
+.bubble__replay {
+    display: none;
+    align-items: center;
+    gap: 0.4em;
+    min-height: var(--touch-target);
+    padding: 0.25em var(--space-2);
+    border: 2px solid var(--color-primary);
+    border-radius: 999px;
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.bubble--active .bubble__replay {
+    display: inline-flex;
+}
+
+/* Without digits the dock only holds the OK button. */
+.keypad--check-only {
+    grid-template-columns: 1fr;
+    width: min(14rem, 100%);
 }

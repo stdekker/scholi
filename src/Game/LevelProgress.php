@@ -24,10 +24,10 @@ final readonly class LevelProgress
         return RoundTime::format($this->bestMs);
     }
 
-    /** Whether the badge says "binnen twee minuten" rather than "binnen een minuut". */
-    public function hasTwoMinutes(): bool
+    /** Translation key that finishes the badge's "Binnen …": "een minuut", "twee minuten" … */
+    public function withinKey(): string
     {
-        return $this->timeLimitMs > RoundTime::ONE_MINUTE_MS;
+        return RoundTime::withinKey($this->timeLimitMs);
     }
 
     /**

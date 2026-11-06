@@ -13,7 +13,7 @@ export default [
         },
     },
     {
-        files: ['tests/js/**/*.js', '*.config.js'],
+        files: ['tests/js/**/*.js', '*.config.js', 'bin/*.mjs'],
         languageOptions: {
             globals: globals.node,
         },

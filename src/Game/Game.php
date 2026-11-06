@@ -6,7 +6,7 @@ namespace App\Game;
 
 /**
  * The games whose rounds are saved. Each stores its results per "level": a number whose meaning
- * belongs to the game (tafels: the table or a TafelsMix value; erbij en eraf: ErbijEraf::storedLevel()).
+ * belongs to the game (tafels: the table or a TafelsMix value; erbij en eraf: ErbijEraf::storedLevel(); dictee: Dictee::storedLevel()).
  *
  * The value is stored in the database and in the guest cookie: never change it.
  */
@@ -14,12 +14,14 @@ enum Game: string
 {
     case Tafels = 'tafels';
     case ErbijEraf = 'erbij-eraf';
+    case Dictee = 'dictee';
 
     public function isKnownLevel(int $level): bool
     {
         return match ($this) {
             self::Tafels => Tafels::isKnown($level),
             self::ErbijEraf => ErbijEraf::isKnown($level),
+            self::Dictee => Dictee::isKnown($level),
         };
     }
 
@@ -32,6 +34,7 @@ enum Game: string
         return match ($this) {
             self::Tafels => Tafels::timeLimitMs($level),
             self::ErbijEraf => ErbijEraf::timeLimitMs($level),
+            self::Dictee => Dictee::timeLimitMs($level),
         };
     }
 

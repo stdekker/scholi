@@ -36,15 +36,17 @@ const CONFETTI_PIECES = 32;
 const CONFETTI_MS = 700;
 
 /*
- * Base class of the bubble games (tafels, erbij en eraf): one bubble per sum; click a bubble,
- * type the answer, pop it. Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1
+ * Base class of the bubble games (tafels, erbij en eraf, dictee): one bubble per task (a sum, or
+ * a word to write); click a bubble, type the answer, pop it. Each round opens with a "Ben je er klaar voor?" dialog and a 3-2-1
  * countdown; then the clock starts. When it runs out the pupil can still finish.
  * The next sum opens by itself (after "Start!", a pop or a freeze); the pupil may tap another one
  * instead. If no bubble is open for AUTO_OPEN_DELAY_MS (e.g. after Escape), one opens as well.
  * A click on a menu link (the site header) during a round pauses it and asks: stop or continue?
  *
  * Not a controller itself (the file name has no _controller suffix): a game's controller
- * extends it and implements createSums(). Stimulus merges the subclass's static values.
+ * extends it and implements createSums() (or newRound() for tasks that are not sums) and, when
+ * its answers are not numbers, the input hooks (see "Hooks" below). Stimulus merges the
+ * subclass's static values.
  * DOM wiring only — the round rules live in assets/games/shared/round.js.
  * The markup is templates/game/_bubble_game.html.twig.
  *
@@ -117,7 +119,8 @@ export default class BubbleGameController extends Controller {
     }
 
     /**
-     * The sums of a new round, in the order the bubbles appear. Implemented by each game.
+     * The sums of a new round, in the order the bubbles appear. Implemented by each game that asks
+     * sums.
      *
      * @returns {import('../games/shared/round.js').Sum[]}
      */
@@ -125,10 +128,79 @@ export default class BubbleGameController extends Controller {
         throw new Error('A bubble game must implement createSums()');
     }
 
+    // Hooks: what a game with other tasks than sums changes. The defaults are for sums.
+
+    /**
+     * A new round. Games whose tasks are not sums override this (createTaskRound()).
+     *
+     * @returns {import('../games/shared/round.js').Round}
+     */
+    newRound() {
+        return createRound(this.createSums(), this.timeLimitValue);
+    }
+
+    /**
+     * Writes what a bubble shows of its task, e.g. "7 + 5 =".
+     *
+     * @param {HTMLElement} element
+     * @param {import('../games/shared/round.js').Task} task
+     */
+    fillQuestion(element, task) {
+        element.textContent = `${formatSum(task)} =`;
+    }
+
+    /**
+     * @param {import('../games/shared/round.js').Task} task
+     * @param {string} input
+     * @returns {boolean}
+     */
+    isCorrect(task, input) {
+        return checkAnswer(task, input);
+    }
+
+    /**
+     * The placeholders of the "correct" text.
+     *
+     * @param {import('../games/shared/round.js').Task} task
+     * @returns {Record<string, string | number>}
+     */
+    correctParams(task) {
+        return { sum: formatSum(task), answer: task.answer };
+    }
+
+    /**
+     * Whether typing this key on the keyboard answers a task.
+     *
+     * @param {string} key
+     * @returns {boolean}
+     */
+    acceptsKey(key) {
+        return /^\d$/.test(key);
+    }
+
+    /**
+     * Adds one typed character to the answer (or ignores it).
+     *
+     * @param {string} value
+     * @param {string} char
+     * @returns {string}
+     */
+    appendKey(value, char) {
+        return appendDigit(value, char);
+    }
+
+    /**
+     * A task has been opened (not when it already was open): games with sound play it here.
+     *
+     * @param {import('../games/shared/round.js').Task} task
+     */
+    // eslint-disable-next-line no-unused-vars
+    taskActivated(task) {}
+
     start() {
         this.stopClock();
         this.cancelAutoOpen();
-        this.round = createRound(this.createSums(), this.timeLimitValue);
+        this.round = this.newRound();
         this.activeBubble = null;
         this.timerTarget.classList.remove('round-timer--expired');
         this.renderClock();
@@ -268,7 +340,7 @@ export default class BubbleGameController extends Controller {
         bubble.style.setProperty('--appear-delay', `${index * APPEAR_STAGGER_MS}ms`);
         bubble.style.setProperty('--bubble-hue', String(BUBBLE_HUES[task.id % BUBBLE_HUES.length]));
         bubble.style.setProperty('--bubble-delay', `${(-Math.random() * 3).toFixed(2)}s`);
-        bubble.querySelector('.bubble__question').textContent = `${formatSum(task)} =`;
+        this.fillQuestion(bubble.querySelector('.bubble__question'), task);
         bubble.querySelector('.bubble__sum').setAttribute('aria-label', this.sumLabel(task));
 
         bubble.addEventListener('animationend', (event) => this.animationEnded(event, bubble));
@@ -310,6 +382,11 @@ export default class BubbleGameController extends Controller {
         input.focus({ preventScroll: true });
         // scroll-margin on .bubble--active keeps the bubble clear of the sticky keypad dock.
         bubble.scrollIntoView({ block: 'nearest' });
+
+        const task = findTask(this.round, Number(bubble.dataset.taskId));
+        if (task) {
+            this.taskActivated(task);
+        }
     }
 
     close() {
@@ -346,13 +423,13 @@ export default class BubbleGameController extends Controller {
     }
 
     /**
-     * Typing a digit anywhere on the page answers a bubble: the open one, else the focused
-     * bubble, else the first remaining bubble.
+     * Typing a digit (or a letter, in dictee) anywhere on the page answers a bubble: the open
+     * one, else the focused bubble, else the first remaining bubble.
      */
     typeAnywhere(event) {
-        const digit = event.key;
+        const key = event.key;
         if (
-            !/^\d$/.test(digit) ||
+            !this.acceptsKey(key) ||
             event.ctrlKey ||
             event.metaKey ||
             event.altKey ||
@@ -368,11 +445,11 @@ export default class BubbleGameController extends Controller {
             return;
         }
 
-        // Handle the digit ourselves: focus moves to the answer field during this keydown.
+        // Handle the key ourselves: focus moves to the answer field during this keydown.
         event.preventDefault();
         this.activate(bubble);
         const input = this.answerInput();
-        input.value = appendDigit(input.value, digit);
+        input.value = this.appendKey(input.value, key);
         input.focus();
     }
 
@@ -390,10 +467,10 @@ export default class BubbleGameController extends Controller {
         return [...this.fieldTarget.children].find(available) ?? null;
     }
 
-    /** Keeps physical-keyboard input to digits only. */
+    /** Keeps physical-keyboard input to what the game accepts (digits, or letters in dictee). */
     typed(event) {
         const input = event.currentTarget;
-        input.value = [...input.value].reduce((value, char) => appendDigit(value, char), '');
+        input.value = [...input.value].reduce((value, char) => this.appendKey(value, char), '');
     }
 
     keydown(event) {
@@ -420,7 +497,7 @@ export default class BubbleGameController extends Controller {
             return;
         }
 
-        if (!checkAnswer(task, input.value)) {
+        if (!this.isCorrect(task, input.value)) {
             this.round = registerWrongAnswer(this.round, task.id, Date.now());
             if (findTask(this.round, task.id)?.frozen) {
                 this.freeze(bubble, task);
@@ -438,10 +515,7 @@ export default class BubbleGameController extends Controller {
         }
 
         this.round = solveTask(this.round, task.id, Date.now());
-        this.statusTarget.textContent = format(this.correctValue, {
-            sum: formatSum(task),
-            answer: task.answer,
-        });
+        this.statusTarget.textContent = format(this.correctValue, this.correctParams(task));
 
         this.close();
         bubble.classList.add('bubble--popping');

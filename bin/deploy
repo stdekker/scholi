@@ -98,6 +98,13 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 git archive HEAD | tar -x -C "$BUILD_DIR"
 echo "$(git rev-parse HEAD)" > "$BUILD_DIR/REVISION"
+# The dictee recordings are generated and git-ignored, so they are not in the archive: take them
+# from the working tree (before asset-map:compile, which gives them their digest).
+if ! compgen -G "assets/audio/taal/dictee/*.mp3" >/dev/null; then
+    fail "No dictee recordings in assets/audio/taal/dictee. Make them first: ddev npm run audio:dictee"
+fi
+mkdir -p "$BUILD_DIR/assets"
+cp -a assets/audio "$BUILD_DIR/assets/"
 ddev exec -d "/var/www/html/$BUILD_DIR" \
     composer install --no-dev --optimize-autoloader --no-interaction --no-progress --no-scripts
 ddev exec -d "/var/www/html/$BUILD_DIR" \

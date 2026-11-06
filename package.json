@@ -5,12 +5,15 @@
     "description": "Dev tooling only (lint, format, unit tests). Runtime JS is served by Symfony AssetMapper, not bundled.",
     "scripts": {
         "lint": "eslint .",
-        "format": "prettier --write \"assets/**/*.{js,css,json}\" \"tests/js/**/*.js\" \"*.{js,json}\"",
-        "format:check": "prettier --check \"assets/**/*.{js,css,json}\" \"tests/js/**/*.js\" \"*.{js,json}\"",
+        "format": "prettier --write \"assets/**/*.{js,css,json}\" \"tests/js/**/*.js\" \"bin/*.mjs\" \"*.{js,json}\"",
+        "format:check": "prettier --check \"assets/**/*.{js,css,json}\" \"tests/js/**/*.js\" \"bin/*.mjs\" \"*.{js,json}\"",
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "audio:dictee": "node --env-file=.env.local bin/generate-dictee-audio.mjs"
     },
     "devDependencies": {
+        "@breezystack/lamejs": "^1.2.7",
+        "@elevenlabs/elevenlabs-js": "^2.76.0",
         "@eslint/js": "^10.0.1",
         "eslint": "^10.13.0",
         "globals": "^17.13.0",

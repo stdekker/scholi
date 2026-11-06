@@ -111,6 +111,12 @@ final class ErbijErafControllerTest extends WebTestCase
         self::assertSelectorExists('a.ready-dialog__back[href="/rekenen/erbij-eraf?soort=eraf"]');
         self::assertSelectorTextContains('.round-complete a[href="/rekenen/erbij-eraf?soort=eraf"]', 'Ander niveau');
         self::assertSelectorExists('meta[name="turbo-cache-control"][content="no-cache"]');
+        // The sums game keeps its digit keypad and three-digit answer field.
+        self::assertSelectorCount(12, '.keypad__key');
+        self::assertSelectorNotExists('.keypad--check-only');
+        self::assertSelectorExists('input.bubble__answer[inputmode="none"][maxlength="3"]');
+        self::assertSelectorNotExists('.bubble__replay');
+        self::assertSelectorTextContains('.ready-dialog', 'Maak alle sommen binnen de tijd.');
     }
 
     public function testHundredLevelsGetTwoMinutes(): void

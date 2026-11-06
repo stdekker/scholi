@@ -17,6 +17,7 @@ Game specifications and mechanics are **not defined yet**. Don't invent game rul
 | Frontend | Symfony UX: **AssetMapper** + **Stimulus** + **Turbo** (native ES modules, no bundler/build step) |
 | Styling | Plain semantic CSS in `assets/styles/` (no Tailwind or utility frameworks) |
 | Font | **Atkinson Hyperlegible** 400/700 (`@fontsource/atkinson-hyperlegible` via importmap), self-hosted |
+| Speech (dev time only) | **ElevenLabs** text-to-speech (`@elevenlabs/elevenlabs-js`, a dev dependency) records the dictee words; the mp3 files are generated and git-ignored, see **Taal › Dictee** |
 | Accounts | Link-based players (no passwords, no e-mail); stateless firewall + cookie, see **Players** |
 | PHP quality | PHPUnit 13 (+ DAMA doctrine-test-bundle), PHPStan (level max + Symfony + Doctrine extensions), PHP-CS-Fixer (`@Symfony`) |
 | JS quality | ESLint (flat config), Prettier, Vitest |
@@ -37,6 +38,7 @@ PHP, Composer, Node and the database run in containers. **Never** run `php`, `co
 | Composer | `ddev composer <args>` |
 | Add a frontend package | `ddev console importmap:require <package>` |
 | npm (dev tools only) | `ddev npm <args>` |
+| Record dictee words | `ddev npm run audio:dictee` (only words without a recording; add `-- --force` for all). Needs `ELEVENLABS_API_KEY` in `.env.local`. The recordings are not in git: run it on every fresh checkout, before `ddev qa` and before a deploy |
 | **All quality checks** | `ddev qa` |
 | PHP only | `ddev composer qa` (or `cs`, `cs:fix`, `phpstan`, `test`; `test` first migrates and validates the test DB) |
 | JS only | `ddev npm run lint`, `ddev npm run format`, `ddev npm test` |
@@ -55,6 +57,7 @@ DDEV generates `.env.local` itself (database and mailer settings). Don't commit 
 - On the server it links `app/shared/.env.local` and `app/shared/var/log`, then runs `cache:clear` and `doctrine:migrations:migrate` with `/opt/alt/php84/usr/bin/php`. After that it switches `app/current` atomically and keeps 5 releases. `public_html` is a symlink to `app/current/public`.
 - One-time setup: `bin/deploy --init` creates the folders and an `app/shared/.env.local` template with `APP_ENV=prod` and a random `APP_SECRET`. Fill in `DATABASE_URL` for the database created in DirectAdmin by hand on the server. Database passwords never go into git or the script.
 - `bin/deploy --dry-run` builds and checks everything without changing the server.
+- The dictee recordings (`assets/audio/`) are git-ignored, so they are not in `git archive`: the script copies them from the working tree before `asset-map:compile` and fails when they are missing.
 - The website's PHP version (DirectAdmin / CloudLinux selector) must be **8.4**. Production uses Apache, so `public/.htaccess` is the front controller; DDEV uses nginx.
 - Overridable via environment variables: `DEPLOY_HOST`, `DEPLOY_PATH`, `DEPLOY_PHP`, `KEEP_RELEASES`.
 
@@ -66,10 +69,12 @@ Tests use the `db_test` database, which a `post-start` hook in `.ddev/config.yam
 src/Controller/HomeController.php           # / – subject overview
 src/Controller/Game/<Subject>Controller.php  # a subject's game list, e.g. RekenenController (/rekenen)
 src/Controller/Game/<Game>Controller.php     # one controller per game, e.g. TafelsController, ErbijErafController
+src/Controller/Game/TaalController.php       # /taal – the taal games
+src/Controller/Game/DicteeController.php     # /taal/dictee – picker, game, result
 src/Controller/Game/AbstractBubbleGameController.php  # shared: progress, storing a round, layout variables
 src/Controller/PlayerController.php          # /speler, /speler/nieuw, /speler/{token}
 src/Entity/, src/Repository/                 # Doctrine: Player, GameResult
-src/Game/                                    # server-side game rules (Game enum, Tafels, TafelsMix, ErbijEraf*), LevelProgress, RoundTime, input DTO
+src/Game/                                    # server-side game rules (Game enum, Tafels, TafelsMix, ErbijEraf*, Dictee*, dictee_words.json), LevelProgress, RoundTime, input DTO
 src/Security/                                # player link token, cookie, authenticator, signed guest progress cookie
 src/Player/                                  # FunNameGenerator, GuestProgress
 src/Migrations/                              # Doctrine migrations
@@ -81,10 +86,12 @@ templates/player/                            # registration, player page, progre
 assets/app.js                                # AssetMapper entrypoint
 assets/controllers/<game>_controller.js      # Stimulus controllers: DOM wiring only, e.g. tafels_controller.js
 assets/controllers/bubble_game.js            # base class of the bubble games' controllers (not registered itself)
-assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js
+assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js, taal/dictee.js
+assets/audio/taal/dictee/<word>.mp3          # recordings of the dictee words (git-ignored, made by bin/generate-dictee-audio.mjs)
 assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js
 assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
 translations/messages.nl.yaml                # all user-facing text
+bin/generate-dictee-audio.mjs                # dev script: records the dictee words with ElevenLabs
 tests/Controller/, tests/Unit/               # PHPUnit functional and unit tests (tests/Support: helpers)
 tests/js/games/                              # Vitest unit tests, mirroring assets/games/
 .ddev/commands/web/qa                        # `ddev qa`
@@ -96,7 +103,7 @@ A **subject** (*vak*, e.g. rekenen) groups one or more **games** (e.g. tafels).
 
 `/rekenen` lists the rekenen games: **Tafels** (`/rekenen/tafels`) and **Erbij en eraf** (`/rekenen/erbij-eraf`).
 
-### Bubble games (shared by tafels and erbij en eraf)
+### Bubble games (shared by tafels, erbij en eraf and dictee)
 
 Each game only decides **which sums** a round asks and its texts. Everything else is shared:
 - the round rules: `assets/games/shared/round.js`
@@ -105,7 +112,9 @@ Each game only decides **which sums** a round asks and its texts. Everything els
 - the server side: `AbstractBubbleGameController`, `Game`, `GameResult`, `LevelProgress`
 - the texts: `game.bubbles.*`
 
-The bubble is only how a sum is shown right now. User-facing text always says **sommen** ("Klik op een som", "Sommen over: 3"), never "bubbels".
+The bubble is only how a task is shown right now. User-facing text always says **sommen** ("Klik op een som", "Sommen over: 3") for sums and **woorden** for dictee, never "bubbels". A game whose tasks are not sums changes the shared parts through hooks, not by copying them:
+- in `bubble_game.js`: `newRound()` (with `createTaskRound()`), `fillQuestion()`, `isCorrect()`, `correctParams()`, `acceptsKey()`/`appendKey()` (what typing accepts), `taskActivated()` and `sumLabel()`;
+- in `bubble_game.html.twig`: the variables `text_keys` (translation keys replacing the texts about sommen), `keypad: false` (no digits, only OK), `answer_max_length`, `replay_label` and `modifier`.
 
 - A task is a sum `{left, operator: plus|min|keer, right}`. It is shown with `+`, `−` (U+2212) or `×` (`formatSum()`), and screen readers get "%left% plus/min/keer %right%". The bubbles bob gently, and the bobbing is off under `prefers-reduced-motion`.
 - Clicking a bubble enlarges it and shows an answer field plus an on-screen keypad (0–9, ⌫, OK). The physical keyboard also works: digits, Backspace, Enter to check, Escape to close. Typing a digit while no bubble is open opens the focused bubble, or else the first remaining one, and enters that digit. The next sum **opens by itself**: the first one after "Start!", and after a pop or a freeze the next remaining one in order (wrapping around). The feedback ("Goed zo!") stays visible. The pupil can tap another bubble instead, for example when they don't know the answer straight away. If no bubble is open for 3 seconds (`AUTO_OPEN_DELAY_MS`, e.g. after Escape or a pause), the focused bubble, or else the first remaining one, opens as well.
@@ -166,6 +175,25 @@ The bubble is only how a sum is shown right now. User-facing text always says **
 - Next level: the next level with the same operation. After tot 100 met brug comes tot 10 of the next operation (erbij → eraf → door elkaar); there is none after door elkaar.
 - Logic: `assets/games/rekenen/erbij_eraf.js`. Wiring: `assets/controllers/erbij_eraf_controller.js`. Server: `ErbijErafController`, `ErbijEraf`, `ErbijErafLevel`, `ErbijErafOperation`.
 
+### Taal › Dictee
+
+- `/taal` lists the taal games (only **Dictee** for now). `/taal/dictee` asks two simple questions on one page: first "Kies je groep" (toggle links `?groep=6|8`, groep 6 by default, the chosen one has `aria-current`), then "Kies je niveau": four level tiles (`DicteeLevel`), each with its description and badge. `/taal/dictee/{groep-6|groep-8}/{level}` is the game, for example `/taal/dictee/groep-8/streepjes`. Unknown slugs give a 404.
+- The game speaks a word and the pupil writes it. A round has **ten** different words, picked at random from the groep's list in `src/Game/dictee_words.json` (40 words each for groep 6 and groep 8; other groepen follow later). Words are lowercase letters a–z only: no accents, no spaces.
+- The level decides what the pupil sees of the word while writing it (`DicteeLevel::mode()`; the hint is made in `assets/games/taal/dictee.js`):
+
+| Level (slug) | Mode | The bubble shows |
+|---|---|---|
+| Overschrijven (`overschrijven`) | full | every letter |
+| Letters aanvullen (`aanvullen`) | partial | about half of the letters: at least one blank, at least one letter, random each round |
+| Streepjes (`streepjes`) | blanks | one blank (underline) per letter |
+| Zonder hulp (`zonder-hulp`) | hidden | nothing, only 🔊 |
+
+- Every level has a **3-minute** clock (`RoundTime::THREE_MINUTES_MS`; the badge says "Binnen drie minuten"). A round is stored as level `Dictee::storedLevel()` = groep × 10 + level, for example 83 = groep 8, streepjes. Next level: the next level of the same groep; none after zonder hulp.
+- It is a bubble game with word bubbles: wide rounded cards (`bubble-game--words`) instead of circles, because a word needs more room. Opening a bubble **plays its word** (also the first one right after "Start!"), and a "Luister nog eens" button inside the open bubble plays it again. Typing works with the keyboard: letters only, lowercased, at most `Dictee::ANSWER_MAX_LENGTH` (20). The dock only has the OK button (Enter works too). `checkWord()` ignores capitals and spaces around the word; anything else must be exact. Autocorrect, autocapitalize and spellcheck are off on the field. Wrong answers, freezing, pause, timer, practice time, saving and progress work as in the other bubble games. A screen reader gets "Woord 3: k, leeg, t" for a bubble.
+- **Recordings:** `assets/audio/taal/dictee/<word>.mp3`, made with ElevenLabs by `bin/generate-dictee-audio.mjs` (voice `7qdUFMklKPaaAVMsBTBt`, model `eleven_v4_turbo` with `language_code` nl so a single word is never taken for another language, stability 1; overridable with `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` and `ELEVENLABS_STABILITY`. Eleven v4 has no speed setting; with an older model (`eleven_flash_v2_5`) `ELEVENLABS_SPEED` (default 0.7, the slowest) applies). The API has no volume setting, so the script asks for raw audio, brings every word to the same loudness without clipping and encodes the mp3 itself (`@breezystack/lamejs`, a dev dependency; no ffmpeg needed). They are generated files, so `/assets/audio/` is git-ignored; AssetMapper serves them, and the page gives the controller a word → URL map (the `audio` value). The browser never contacts ElevenLabs and production needs no key. After adding words to the list, and on a fresh checkout, run `ddev npm run audio:dictee` (it only makes the missing ones). `bin/deploy` copies the recordings from your working tree into the release and stops when there are none. A test fails when a word has no recording or a recording has no word, so `ddev qa` needs them too.
+- Some browsers (iPads) only play sound that starts from a click. "Ik ben er klaar voor!" is that click: `unlockAudio()` plays a recording silently then, so the words that follow may start on their own. A recording that can't be played shows "Het geluid werkt niet …" in the status line.
+- Logic: `assets/games/taal/dictee.js`. Wiring: `assets/controllers/dictee_controller.js`. Server: `DicteeController`, `Dictee`, `DicteeGroup`, `DicteeLevel`.
+
 ## Players (accounts)
 
 - **No passwords and no e-mail.** Registering (`/speler/nieuw`) only asks for a name and an animal emoji, pre-filled with a fun suggestion: a positive adjective + animal ("Dappere Dolfijn") and that animal's emoji 🐬 (`App\Player\FunNameGenerator`; the word lists are content data, not translations).
@@ -206,6 +234,7 @@ The bubble is only how a sum is shown right now. User-facing text always says **
 
 - Load nothing from third parties: no CDNs, Google Fonts, analytics, trackers, ads or embeds. AssetMapper vendors all JS **and fonts** locally into `assets/vendor/` (git-ignored). `importmap:install` downloads them, and `composer install` runs it automatically.
 - Fonts: pin the font's CSS with `ddev console importmap:require @fontsource/<font>/<weight>.css` and import it in `assets/app.js`. AssetMapper also downloads the woff2/woff files that CSS references. Never commit font files and never link to fonts.googleapis.com.
+- Speech: the dictee recordings are made at dev time from the word lists only, so no pupil data is ever sent to ElevenLabs. The API key lives in `.env.local` (git-ignored) and is never needed in production.
 - Collect as little personal data as possible. Ask before adding anything that stores data about pupils.
 - What is stored today: per player a self-chosen name (a fun name is suggested; the form asks not to use a real name) and animal emoji, the SHA-256 hash of the player link token, the creation date, per finished round the game, level (e.g. the table), duration, passed flag and date, and the seconds practised per day for the last seven days only (older days are deleted on the player's next round). For guests the server stores nothing: their best time and date per game and level, and their practice seconds per day, live only in the signed `scholi_guest` cookie in their browser. Nothing else: no e-mail, no IP addresses, no tracking.
 

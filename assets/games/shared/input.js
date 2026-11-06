@@ -1,5 +1,6 @@
 /**
- * Answer input shared by the bubble games: digits typed on the keypad or keyboard.
+ * Answer input shared by the bubble games: digits typed on the keypad or keyboard, and letters
+ * typed on the keyboard (dictee).
  *
  * Pure ES module: no DOM access and no bare (importmap) imports.
  */
@@ -22,6 +23,23 @@ export function appendDigit(value, digit, maxLength = ANSWER_MAX_LENGTH) {
     }
 
     return value + digit;
+}
+
+/**
+ * Appends a letter typed on the keyboard, in lowercase. Anything else (digits, spaces, keys like
+ * "Enter") and input beyond `maxLength` are ignored.
+ *
+ * @param {string} value
+ * @param {string} letter
+ * @param {number} maxLength
+ * @returns {string}
+ */
+export function appendLetter(value, letter, maxLength) {
+    if (!/^\p{L}$/u.test(letter) || [...value].length >= maxLength) {
+        return value;
+    }
+
+    return value + letter.toLowerCase();
 }
 
 /**

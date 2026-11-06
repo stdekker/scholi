@@ -3,6 +3,7 @@ import {
     answerOf,
     checkAnswer,
     createRound,
+    createTaskRound,
     findTask,
     frozenTasks,
     isPassed,
@@ -79,6 +80,54 @@ describe('createRound', () => {
 
     it('rejects an unknown operator', () => {
         expect(() => answerOf({ left: 1, operator: 'delen', right: 1 })).toThrow(RangeError);
+    });
+});
+
+describe('createTaskRound', () => {
+    it('makes one task per item, keeping what the game put in it', () => {
+        const round = createTaskRound(
+            [
+                { answer: 'kat', hint: ['k', null, 't'] },
+                { answer: 'boom', hint: [] },
+            ],
+            180_000,
+        );
+
+        expect(round.tasks).toEqual([
+            {
+                id: 1,
+                answer: 'kat',
+                hint: ['k', null, 't'],
+                solved: false,
+                wrongAttempts: 0,
+                frozen: false,
+            },
+            { id: 2, answer: 'boom', hint: [], solved: false, wrongAttempts: 0, frozen: false },
+        ]);
+        expect(round).toMatchObject({ timeLimitMs: 180_000, startedAt: null, finishedAt: null });
+    });
+
+    it('does not let an item change the state of its task', () => {
+        const round = createTaskRound([{ answer: 'kat', id: 9, solved: true }], 60_000);
+
+        expect(round.tasks[0]).toMatchObject({ id: 1, solved: false });
+    });
+
+    it('plays like any round: solving and freezing the tasks completes it', () => {
+        let round = createTaskRound([{ answer: 'kat' }, { answer: 'boom' }], 60_000);
+        round = startTimer(round, 1_000);
+        round = solveTask(round, 1, 5_000);
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            round = registerWrongAnswer(round, 2, 9_000);
+        }
+
+        expect(isRoundComplete(round)).toBe(true);
+        expect(frozenTasks(round).map((task) => task.answer)).toEqual(['boom']);
+        expect(isPassed(round)).toBe(false);
+    });
+
+    it('needs at least one task', () => {
+        expect(() => createTaskRound([], 60_000)).toThrow(RangeError);
     });
 });
 
