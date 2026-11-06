@@ -201,7 +201,7 @@ Link-based players, no login. Details: [docs/players.md](docs/players.md). The r
 2. `templates/game/<subject>/<game>.html.twig` that mounts `data-controller="<game>"`. A bubble game extends `game/bubble_game.html.twig` instead.
 3. `assets/controllers/<game>_controller.js` (thin; a bubble game extends `bubble_game.js` and implements `createSums()`) + `assets/games/<subject>/<game>.js` (logic). Reuse `assets/games/shared/`.
 4. If its rounds are saved: a case in the `Game` enum with its level rules, so results and the guest cookie accept it.
-5. `tests/js/games/<subject>/<game>.test.js` + functional tests for the new URLs.
+5. `tests/js/games/<subject>/<game>.test.js` + functional tests for the new URLs. A saved bubble game adds its rounds to `rounds()` and its unknown rounds to `unknownRounds()` in `tests/Controller/Game/BubbleGameResultTest.php` (player/guest/JSON-only for the `…/resultaat` route), and its public pages to `SmokeTest`.
 6. Translation keys under `game.<subject>.<game>.*` (shared bubble texts are in `game.bubbles.*`).
 7. Describe the mechanics in `docs/games/<game>.md` and add the game to the table under **Games** and to **Read before touching**.
 8. Run `ddev qa`.

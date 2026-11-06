@@ -9,83 +9,15 @@ use App\Game\Game;
 use App\Game\TafelsMix;
 use App\Player\GuestProgress;
 use App\Tests\Support\PlayerTestTrait;
+use App\Tests\Support\PostJsonTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Cookie;
 
 final class TafelsResultTest extends WebTestCase
 {
     use PlayerTestTrait;
-
-    /**
-     * @return iterable<string, array{int, bool}>
-     */
-    public static function durations(): iterable
-    {
-        yield 'within the minute' => [45_000, true];
-        yield 'exactly one minute' => [60_000, true];
-        yield 'too slow' => [75_000, false];
-    }
-
-    #[DataProvider('durations')]
-    public function testPlayerResultIsStoredAndJudgedByTheServer(int $durationMs, bool $passed): void
-    {
-        $client = static::createClient();
-        [$player, $token] = $this->createPlayer();
-        $this->logIn($client, $token);
-
-        $this->postJson($client, '/rekenen/tafel/6/resultaat', ['durationMs' => $durationMs]);
-
-        self::assertResponseStatusCodeSame(201);
-        self::assertJsonStringEqualsJsonString(json_encode(['passed' => $passed], \JSON_THROW_ON_ERROR), (string) $client->getResponse()->getContent());
-
-        $results = $this->entityManager()->getRepository(GameResult::class)->findBy(['player' => $player]);
-        self::assertCount(1, $results);
-        self::assertSame(6, $results[0]->getLevel());
-        self::assertSame($durationMs, $results[0]->getDurationMs());
-        self::assertSame($passed, $results[0]->isPassed());
-    }
-
-    /**
-     * @return iterable<string, array{TafelsMix, int, bool}>
-     */
-    public static function mixDurations(): iterable
-    {
-        foreach (TafelsMix::cases() as $mix) {
-            yield $mix->slug().' within two minutes' => [$mix, 90_000, true];
-            yield $mix->slug().' exactly two minutes' => [$mix, 120_000, true];
-            yield $mix->slug().' too slow' => [$mix, 125_000, false];
-        }
-    }
-
-    #[DataProvider('mixDurations')]
-    public function testMixResultGetsTwoMinutes(TafelsMix $mix, int $durationMs, bool $passed): void
-    {
-        $client = static::createClient();
-        [$player, $token] = $this->createPlayer();
-        $this->logIn($client, $token);
-
-        $this->postJson($client, '/rekenen/alle-tafels/'.$mix->slug().'/resultaat', ['durationMs' => $durationMs]);
-
-        self::assertResponseStatusCodeSame(201);
-        self::assertSame(['passed' => $passed], json_decode((string) $client->getResponse()->getContent(), true));
-        $results = $this->entityManager()->getRepository(GameResult::class)->findBy(['player' => $player]);
-        self::assertCount(1, $results);
-        self::assertSame($mix->value, $results[0]->getLevel());
-        self::assertSame($passed, $results[0]->isPassed());
-    }
-
-    public function testPractisedTablesAreNeverSaved(): void
-    {
-        $client = static::createClient();
-        [, $token] = $this->createPlayer();
-        $this->logIn($client, $token);
-
-        $this->postJson($client, '/rekenen/alle-tafels/geoefend/resultaat', ['durationMs' => 90_000]);
-
-        self::assertResponseStatusCodeSame(404);
-    }
+    use PostJsonTrait;
 
     public function testGuestResultIsKeptInASignedCookie(): void
     {
@@ -189,17 +121,6 @@ final class TafelsResultTest extends WebTestCase
         self::assertNull($this->responseGuestCookie($client));
     }
 
-    public function testOnlyJsonIsAccepted(): void
-    {
-        $client = static::createClient();
-        [, $token] = $this->createPlayer();
-        $this->logIn($client, $token);
-
-        $client->request('POST', '/rekenen/tafel/6/resultaat', ['durationMs' => 45_000]);
-
-        self::assertResponseStatusCodeSame(415);
-    }
-
     /**
      * @return iterable<string, array{array<string, mixed>}>
      */
@@ -224,17 +145,6 @@ final class TafelsResultTest extends WebTestCase
         $this->postJson($client, '/rekenen/tafel/6/resultaat', $payload);
 
         self::assertResponseStatusCodeSame(422);
-    }
-
-    public function testInvalidTableIsNotFound(): void
-    {
-        $client = static::createClient();
-        [, $token] = $this->createPlayer();
-        $this->logIn($client, $token);
-
-        $this->postJson($client, '/rekenen/tafel/13/resultaat', ['durationMs' => 45_000]);
-
-        self::assertResponseStatusCodeSame(404);
     }
 
     public function testPickerShowsBadgesForPlayer(): void
@@ -311,13 +221,5 @@ final class TafelsResultTest extends WebTestCase
         self::assertNotNull($progress);
 
         return array_map(static fn (array $result): int => $result['bestMs'], $progress->results['tafels'] ?? []);
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function postJson(KernelBrowser $client, string $url, array $payload): void
-    {
-        $client->request('POST', $url, server: ['CONTENT_TYPE' => 'application/json'], content: json_encode($payload, \JSON_THROW_ON_ERROR));
     }
 }

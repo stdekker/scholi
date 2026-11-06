@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Game;
 
-use App\Entity\GameResult;
 use App\Game\Dictee;
 use App\Game\DicteeGroup;
 use App\Game\Game;
 use App\Player\GuestProgress;
 use App\Tests\Support\PlayerTestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class DicteeControllerTest extends WebTestCase
@@ -171,72 +169,5 @@ final class DicteeControllerTest extends WebTestCase
         $client->request('GET', $url);
 
         self::assertResponseStatusCodeSame(404);
-    }
-
-    /**
-     * @return iterable<string, array{string, int, int, bool}>
-     */
-    public static function results(): iterable
-    {
-        yield 'groep 6 overschrijven within three minutes' => ['groep-6/overschrijven', 61, 180_000, true];
-        yield 'groep 6 overschrijven too slow' => ['groep-6/overschrijven', 61, 180_001, false];
-        yield 'groep 6 letters aanvullen' => ['groep-6/aanvullen', 62, 95_000, true];
-        yield 'groep 8 streepjes' => ['groep-8/streepjes', 83, 120_000, true];
-        yield 'groep 8 zonder hulp too slow' => ['groep-8/zonder-hulp', 84, 240_000, false];
-    }
-
-    #[DataProvider('results')]
-    public function testPlayerResultIsStoredAndJudgedByTheServer(string $round, int $level, int $durationMs, bool $passed): void
-    {
-        $client = static::createClient();
-        [$player, $token] = $this->createPlayer();
-        $this->logIn($client, $token);
-
-        $this->postJson($client, '/taal/dictee/'.$round.'/resultaat', ['durationMs' => $durationMs]);
-
-        self::assertResponseStatusCodeSame(201);
-        self::assertSame(['passed' => $passed], json_decode((string) $client->getResponse()->getContent(), true));
-        $results = $this->entityManager()->getRepository(GameResult::class)->findBy(['player' => $player]);
-        self::assertCount(1, $results);
-        self::assertSame(Game::Dictee, $results[0]->getGame());
-        self::assertSame($level, $results[0]->getLevel());
-        self::assertSame($passed, $results[0]->isPassed());
-    }
-
-    public function testGuestResultIsKeptInTheCookie(): void
-    {
-        $client = static::createClient();
-
-        $this->postJson($client, '/taal/dictee/groep-8/aanvullen/resultaat', ['durationMs' => 100_000]);
-
-        self::assertResponseIsSuccessful();
-        self::assertSame(0, $this->entityManager()->getRepository(GameResult::class)->count(), 'Nothing is stored on the server for guests');
-        $progress = $this->guestCookie()->decode((string) $this->responseGuestCookie($client)?->getValue());
-        self::assertSame([82], array_keys($progress?->progress(Game::Dictee) ?? []));
-    }
-
-    public function testResultOfAnUnknownRoundIsNotStored(): void
-    {
-        $client = static::createClient();
-
-        $this->postJson($client, '/taal/dictee/groep-5/aanvullen/resultaat', ['durationMs' => 100_000]);
-
-        self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testOnlyJsonIsAccepted(): void
-    {
-        $client = static::createClient();
-        $client->request('POST', '/taal/dictee/groep-6/overschrijven/resultaat', ['durationMs' => 40_000]);
-
-        self::assertResponseStatusCodeSame(415);
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function postJson(KernelBrowser $client, string $url, array $payload): void
-    {
-        $client->request('POST', $url, server: ['CONTENT_TYPE' => 'application/json'], content: json_encode($payload, \JSON_THROW_ON_ERROR));
     }
 }
