@@ -48,7 +48,7 @@ const CONFETTI_MS = 700;
  * its answers are not numbers, the input hooks (see "Hooks" below). Stimulus merges the
  * subclass's static values.
  * DOM wiring only — the round rules live in assets/games/shared/round.js.
- * The markup is templates/game/_bubble_game.html.twig.
+ * The markup is templates/game/bubble_game.html.twig; the mechanics are in docs/games/bubble-games.md.
  *
  * Translated texts arrive as values with %placeholders%, filled in with format().
  */
