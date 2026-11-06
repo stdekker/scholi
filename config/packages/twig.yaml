@@ -1,5 +1,8 @@
 twig:
     file_name_pattern: '*.twig'
+    globals:
+        # Linked from the "Meer over Scholi" popup.
+        github_url: 'https://github.com/stdekker/scholi'
 
 when@test:
     twig:

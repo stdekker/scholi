@@ -22,6 +22,10 @@ final class SmokeTest extends WebTestCase
         // The elephant mascot, served by this site, is in the popup (decorative) and not in the header.
         self::assertSelectorExists('#about-scholi img.about-popover__logo[src^="/assets/images/scholi-mascot-"][alt=""]');
         self::assertSelectorNotExists('.site-header img');
+        // A link to the GitHub repository with its mark (inline SVG, nothing loaded from GitHub), in a new tab.
+        self::assertSelectorExists('#about-scholi a.action-button[href="https://github.com/stdekker/scholi"][target="_blank"][rel="noopener noreferrer"] svg.about-popover__icon[aria-hidden="true"]');
+        self::assertSelectorTextContains('#about-scholi a[href^="https://github.com/"]', 'Bekijk de code op GitHub');
+        self::assertSelectorTextContains('#about-scholi a[href^="https://github.com/"] .visually-hidden', 'opent in een nieuw tabblad');
     }
 
     /**

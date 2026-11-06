@@ -253,6 +253,20 @@ body {
     margin-block-start: 0;
 }
 
+/* The GitHub link and "Sluiten": side by side, stacked when the popup is narrow. */
+.about-popover__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.about-popover__icon {
+    flex: none;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
 /* Text for screen readers only. */
 .visually-hidden {
     position: absolute;

@@ -5,6 +5,8 @@ app:
         title: Over Scholi
         text: Een vriendelijke, speelse en privacyvriendelijke leeromgeving voor kinderen. De code is open source, gratis te downloaden en voor iedereen aanpasbaar.
         close: Sluiten
+        github: Bekijk de code op GitHub
+        new_tab: (opent in een nieuw tabblad)
 
 home:
     title: Kies een spel
