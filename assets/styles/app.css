@@ -199,9 +199,9 @@ body {
     .site-footer__mascot {
         position: fixed;
         inset-block-end: 0;
-        inset-inline-end: 3rem;
-        width: 12rem;
-        margin: 0;
+        inset-inline-end: 1rem;
+        width: 18rem;
+        margin: 0 0 1rem 0;
         pointer-events: none;
     }
 }
