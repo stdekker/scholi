@@ -15,7 +15,11 @@
     </head>
     <body>
         <header class="site-header">
-            <a class="site-header__brand" href="{{ path('app_home') }}">{{ 'app.name'|trans }}</a>
+            {# The logo is the link. If it fails to load, brand-logo turns the link into the blue pill with the text. #}
+            <a class="site-header__brand" href="{{ path('app_home') }}" data-controller="brand-logo">
+                <img class="site-header__logo" src="{{ asset('images/scholi-logo.webp') }}" alt="{{ 'app.name'|trans }}" width="480" height="234" data-brand-logo-target="image" data-action="error->brand-logo#fallback">
+                <span data-brand-logo-target="text" hidden>{{ 'app.name'|trans }}</span>
+            </a>
             {% if app.user %}
                 {% set stats = player_stats(app.user) %}
                 <a class="site-header__player" href="{{ path('app_player') }}">

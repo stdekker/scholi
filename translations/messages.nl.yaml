@@ -143,7 +143,7 @@ game:
             description: Luister naar een woord en schrijf het op.
             picker_intro: Je hoort tien woorden. Schrijf ze op!
             choose_group: Kies je groep
-            choose_level: Kies je niveau
+            choose_level: Hoe wil je oefenen?
             groups:
                 groep_6: Groep 6
                 groep_8: Groep 8

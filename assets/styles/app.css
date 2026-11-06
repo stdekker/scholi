@@ -75,7 +75,10 @@ body {
 
 /* Site layout */
 
-/* The header has the colour of the page; the brand and the player are blue pills on it. */
+/*
+ * The header has the colour of the page. The brand is the Scholi logo (a blue cloud); the player is
+ * a blue pill. The brand turns into the same kind of pill when the logo can't be loaded.
+ */
 .site-header {
     display: flex;
     flex-wrap: wrap;
@@ -91,13 +94,17 @@ body {
     display: inline-flex;
     align-items: center;
     min-height: var(--touch-target);
+    text-decoration: none;
+}
+
+.site-header__brand--text,
+.site-header__player {
     padding: 0 var(--space-3);
     border: 2px solid var(--color-primary-dark);
     border-radius: 999px;
     background-color: var(--color-primary);
     color: var(--color-primary-contrast);
     font-weight: 700;
-    text-decoration: none;
 }
 
 /* The page colour around the pills is light, so the usual amber ring would hardly show there. */
@@ -107,7 +114,19 @@ body {
 }
 
 .site-header__brand {
+    border-radius: var(--radius);
+}
+
+.site-header__brand--text {
+    border-radius: 999px;
     font-size: 1.75rem;
+}
+
+/* The file is 480 × 234 px: sharp up to about 2.5× pixel density at this size. */
+.site-header__logo {
+    display: block;
+    height: 5.5rem;
+    width: auto;
 }
 
 /* The stats sit after the name, set apart by a thin line. */
@@ -148,7 +167,11 @@ body {
         padding-inline: var(--space-1);
     }
 
-    .site-header__brand {
+    .site-header__logo {
+        height: 4rem;
+    }
+
+    .site-header__brand--text {
         padding-inline: var(--space-2);
         font-size: 1.5rem;
     }
@@ -181,14 +204,14 @@ body {
 /* The elephant in the bottom right corner of the task selection screens: in the footer, to the
    right of the button. */
 .site-footer__mascot {
-    width: 9rem;
+    width: 9.5rem;
     height: auto;
     margin-inline-start: auto;
 }
 
 @media (max-width: 40rem) {
     .site-footer__mascot {
-        width: 5.5rem;
+        width: 9.6rem;
     }
 }
 

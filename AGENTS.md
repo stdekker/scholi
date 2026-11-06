@@ -90,6 +90,7 @@ assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g
 assets/audio/taal/dictee/<word>.mp3          # recordings of the dictee words (git-ignored, made by bin/generate-dictee-audio.mjs)
 assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js
 assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
+assets/images/scholi-logo.webp               # the Scholi logo (480×234, transparent) in the header; the link falls back to a blue pill with the text
 assets/images/scholi-mascot.webp             # the blue elephant mascot (192×192, transparent) in the "Meer over Scholi" popup
 assets/images/scholi-mascot-large.webp       # the same at 384×384: bottom right of every task selection screen (never in a game, never in the header): fixed in the corner of the window on a monitor (≥ 90rem, beside the page column), in the footer on smaller screens
 translations/messages.nl.yaml                # all user-facing text
@@ -146,7 +147,7 @@ The bubble is only how a task is shown right now. User-facing text always says *
     - For a player, they go in `PracticeDay` (one row per player and day). Each write deletes that player's rows from before the window.
     - For a guest, they go in the cookie under `"p":{"<Y-m-d>":seconds}`, also only for the window.
   - **Showing:** the endpoint answers `{minutes}`. The header (⏱️) and the player page show the total; the completion panel doesn't.
-- **Header:** it has the colour of the page (the footer fades into a faint shade at the very bottom) and holds two blue pills with a slightly darker edge: the "Scholi" link on the left and the player on the right. For a player, the pill shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. On phones (up to 40rem) the name is visually hidden and only the emoji shows (👤 without one). Guests see "Voortgang bewaren" instead.
+- **Header:** it has the colour of the page (the footer fades into a faint shade at the very bottom). On the left is the Scholi logo (`assets/images/scholi-logo.webp`, a blue felt cloud with the name, linking home); on the right is a blue pill with a slightly darker edge for the player. If the logo can't be loaded, `brand_logo_controller.js` turns the logo link into the same kind of blue pill with the text "Scholi" (`site-header__brand--text`; the text is in the markup, hidden while the logo works). For a player, the pill shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. On phones (up to 40rem) the name is visually hidden and only the emoji shows (👤 without one). Guests see "Voortgang bewaren" instead.
 
 ### Rekenen › Tafels
 
@@ -179,7 +180,7 @@ The bubble is only how a task is shown right now. User-facing text always says *
 
 ### Taal › Dictee
 
-- `/taal` lists the taal games (only **Dictee** for now). `/taal/dictee` asks two simple questions on one page: first "Kies je groep" (toggle links `?groep=6|8`, groep 6 by default, the chosen one has `aria-current`), then "Kies je niveau": four level tiles (`DicteeLevel`), each with its description and badge. `/taal/dictee/{groep-6|groep-8}/{level}` is the game, for example `/taal/dictee/groep-8/streepjes`. Unknown slugs give a 404.
+- `/taal` lists the taal games (only **Dictee** for now). `/taal/dictee` asks two simple questions on one page: first "Kies je groep" (toggle links `?groep=6|8`, groep 6 by default, the chosen one has `aria-current`), then "Hoe wil je oefenen?": four level tiles (`DicteeLevel`), each with its description and badge. `/taal/dictee/{groep-6|groep-8}/{level}` is the game, for example `/taal/dictee/groep-8/streepjes`. Unknown slugs give a 404.
 - The game speaks a word and the pupil writes it. A round has **ten** different words, picked at random from the groep's list in `src/Game/dictee_words.json` (240 words each for groep 6 and groep 8, in a mix of spelling topics; other groepen follow later). Words are lowercase letters a–z only: no accents, no spaces.
 - The level decides what the pupil sees of the word while writing it (`DicteeLevel::mode()`; the hint is made in `assets/games/taal/dictee.js`):
 

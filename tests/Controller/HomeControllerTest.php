@@ -38,7 +38,7 @@ final class HomeControllerTest extends WebTestCase
         // In the footer, next to the "Meer over Scholi" button; decorative, so no alt text.
         self::assertSelectorExists('.site-footer img.site-footer__mascot[src^="/assets/images/scholi-mascot-large-"][alt=""]');
         self::assertSelectorCount(1, '.site-footer__mascot');
-        self::assertSelectorNotExists('.site-header img');
+        self::assertSelectorNotExists('.site-header img[src*="mascot"]');
     }
 
     /**
@@ -61,6 +61,6 @@ final class HomeControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('.site-footer__mascot');
-        self::assertSelectorNotExists('.site-header img');
+        self::assertSelectorNotExists('.site-header img[src*="mascot"]');
     }
 }
