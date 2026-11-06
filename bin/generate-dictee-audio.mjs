@@ -16,6 +16,7 @@
  * Every word is asked in Dutch (language_code "nl") with the highest stability, so all words
  * sound the same. The API has no volume setting, so the script asks for raw audio, brings every
  * word to the same loudness without clipping and encodes the mp3 itself (no ffmpeg needed).
+ * To keep the files small, silence around the word is trimmed and the mp3 is 24 kHz mono, 40 kbps.
  */
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { Mp3Encoder } from '@breezystack/lamejs';
@@ -38,8 +39,12 @@ const isV4 = modelId.startsWith('eleven_v4');
 // 1 is the steadiest delivery: a word sounds like the same voice every time.
 const stability = Number(process.env.ELEVENLABS_STABILITY ?? 1);
 
+// Rate of the raw audio asked from the API (pcm_24000).
 const SAMPLE_RATE = 24_000;
-const MP3_KBPS = 64;
+// Single spoken words: mono at 40 kbps keeps the files small. No resampling: that would alias.
+const MP3_KBPS = 40;
+// Silence kept around the word after trimming, in milliseconds.
+const PADDING_MS = 60;
 // Loudness of the speech itself (RMS of everything above the noise floor), in dB below full scale.
 const TARGET_RMS_DB = -16;
 // Never louder than this peak, so nothing clips.
@@ -87,6 +92,30 @@ function louder(samples) {
         ),
         gainDb: 20 * Math.log10(gain),
     };
+}
+
+/**
+ * Cuts the silence before and after the word, keeping PADDING_MS on each side.
+ *
+ * @param {Int16Array} samples 16-bit mono audio at SAMPLE_RATE
+ * @returns {Int16Array}
+ */
+function trim(samples) {
+    const threshold = SILENCE * 32768;
+    const first = samples.findIndex((sample) => Math.abs(sample) > threshold);
+    if (first === -1) {
+        return samples;
+    }
+    let last = samples.length - 1;
+    while (Math.abs(samples[last]) <= threshold) {
+        last--;
+    }
+    const padding = Math.round((SAMPLE_RATE * PADDING_MS) / 1000);
+
+    return samples.slice(
+        Math.max(0, first - padding),
+        Math.min(samples.length, last + 1 + padding),
+    );
 }
 
 /**
@@ -139,7 +168,7 @@ for (const word of words) {
         // convert() returns a web ReadableStream.
         const bytes = await new Response(audio).arrayBuffer();
         const { samples, gainDb } = louder(
-            new Int16Array(bytes, 0, Math.floor(bytes.byteLength / 2)),
+            trim(new Int16Array(bytes, 0, Math.floor(bytes.byteLength / 2))),
         );
         await writeFile(file, toMp3(samples));
         made++;
