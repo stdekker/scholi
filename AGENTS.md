@@ -146,7 +146,7 @@ The bubble is only how a task is shown right now. User-facing text always says *
     - For a player, they go in `PracticeDay` (one row per player and day). Each write deletes that player's rows from before the window.
     - For a guest, they go in the cookie under `"p":{"<Y-m-d>":seconds}`, also only for the window.
   - **Showing:** the endpoint answers `{minutes}`. The header (⏱️) and the player page show the total; the completion panel doesn't.
-- **Header:** for a player, the blue header shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. On phones (up to 40rem) the name is visually hidden and only the emoji shows (👤 without one). Guests see "Voortgang bewaren" instead.
+- **Header:** it has the colour of the page (the footer fades into a faint shade at the very bottom) and holds two blue pills with a slightly darker edge: the "Scholi" link on the left and the player on the right. For a player, the pill shows next to the name the number of badges (⭐: levels with a ⭐ or ✓, over all games, `GameResultRepository::badgeCount()`) and the practice minutes (⏱️). It comes from the Twig function `player_stats()` (`App\Twig\PlayerStatsExtension`) and has one visually hidden sentence for screen readers. On phones (up to 40rem) the name is visually hidden and only the emoji shows (👤 without one). Guests see "Voortgang bewaren" instead.
 
 ### Rekenen › Tafels
 

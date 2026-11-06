@@ -7,9 +7,13 @@
 
 :root {
     --color-background: #fffaf0;
+    /* A little darker than the background: the bottom of the page fades into it. */
+    --color-background-shade: #f2e9d6;
     --color-surface: #ffffff;
     --color-text: #1f2937;
     --color-primary: #1d4ed8;
+    /* A slightly darker blue: the edge of the pills. */
+    --color-primary-dark: #1e40af;
     --color-primary-contrast: #ffffff;
     --color-accent: #f59e0b;
     --color-warning: #b45309;
@@ -71,6 +75,7 @@ body {
 
 /* Site layout */
 
+/* The header has the colour of the page; the brand and the player are blue pills on it. */
 .site-header {
     display: flex;
     flex-wrap: wrap;
@@ -78,20 +83,31 @@ body {
     justify-content: space-between;
     gap: var(--space-1) var(--space-2);
     padding: var(--space-2);
-    background-color: var(--color-primary);
+    background-color: var(--color-background);
 }
 
+.site-header__brand,
 .site-header__player {
     display: inline-flex;
     align-items: center;
-    gap: 0.4em;
     min-height: var(--touch-target);
-    padding: 0 var(--space-2);
-    border: 2px solid var(--color-primary-contrast);
-    border-radius: var(--radius);
+    padding: 0 var(--space-3);
+    border: 2px solid var(--color-primary-dark);
+    border-radius: 999px;
+    background-color: var(--color-primary);
     color: var(--color-primary-contrast);
     font-weight: 700;
     text-decoration: none;
+}
+
+/* The page colour around the pills is light, so the usual amber ring would hardly show there. */
+.site-header__brand:focus-visible,
+.site-header__player:focus-visible {
+    outline-color: var(--color-text);
+}
+
+.site-header__brand {
+    font-size: 1.75rem;
 }
 
 /* The stats sit after the name, set apart by a thin line. */
@@ -127,8 +143,13 @@ body {
         line-height: 1;
     }
 
-    /* Smaller brand and button, so both fit on one line. */
+    /* Smaller pills, so both fit on one line. */
+    .site-header {
+        padding-inline: var(--space-1);
+    }
+
     .site-header__brand {
+        padding-inline: var(--space-2);
         font-size: 1.5rem;
     }
 
@@ -138,7 +159,7 @@ body {
     }
 
     .site-header__player {
-        padding-inline: var(--space-1);
+        padding-inline: var(--space-2);
         font-size: 1rem;
     }
 
@@ -147,12 +168,14 @@ body {
     }
 }
 
+/* The page colour at the top of the footer, a faint shade at the very bottom of the page. */
 .site-footer {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
+    background: linear-gradient(to bottom, var(--color-background), var(--color-background-shade));
 }
 
 /* The elephant in the bottom right corner of the task selection screens: in the footer, to the
@@ -238,13 +261,6 @@ body {
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-}
-
-.site-header__brand {
-    color: var(--color-primary-contrast);
-    font-size: 1.75rem;
-    font-weight: 700;
-    text-decoration: none;
 }
 
 .site-main {
