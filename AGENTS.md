@@ -90,8 +90,9 @@ src/Migrations/                              # Doctrine migrations
 templates/base.html.twig                     # layout (lang="nl"; blocks: meta, title, body; a page sets `mascot` to true for the elephant in the footer), header, footer with the "Meer over Scholi" popover
 templates/home/                              # homepage
 templates/game/bubble_game.html.twig         # shared layout of the bubble games (dialog, bubbles, keypad, completion panel)
+templates/game/_picker_tile.html.twig        # one tile of a picker (label, note, badge); _choice_switch.html.twig: the toggle links (erbij/eraf, groep). Reuse them for a new picker
 templates/game/<subject>/                    # subject + game pages, e.g. game/rekenen/tafel.html.twig
-templates/player/                            # registration, player page, progress badge
+templates/player/                            # registration, player page, progress badge; _level_table.html.twig: a game's levels × columns on the player page
 assets/app.js                                # AssetMapper entrypoint
 assets/controllers/<game>_controller.js      # Stimulus controllers: DOM wiring only, e.g. tafels_controller.js
 assets/controllers/bubble_game.js            # base class of the bubble games' controllers (not registered itself)

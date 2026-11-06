@@ -1,0 +1,18 @@
+{#
+    A row of toggle links that reload the picker with another choice (erbij / eraf / door elkaar,
+    a groep). Include it with with_context = false. Variable:
+    - choices: a list of {url, label, current, symbol?}; the current one gets aria-current
+#}
+<ul class="operation-switch">
+    {% for choice in choices %}
+        <li>
+            <a class="operation-switch__link" href="{{ choice.url }}"
+                {%- if choice.current %} aria-current="page"{% endif %}>
+                {% if choice.symbol is defined %}
+                    <span class="operation-switch__symbol" aria-hidden="true">{{ choice.symbol }}</span>
+                {% endif %}
+                {{ choice.label }}
+            </a>
+        </li>
+    {% endfor %}
+</ul>

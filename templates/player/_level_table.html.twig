@@ -1,0 +1,36 @@
+{#
+    A player's results of a game with levels × columns (erbij en eraf: levels × operations,
+    dictee: levels × groepen). Include it with with_context = false. Variables:
+    - grid: Dictee::grid() / ErbijEraf::grid(): per level, its rounds with the `stored` level
+    - progress: the player's results keyed by stored level
+    - column: the key of a round that names its column ('operation', 'group')
+    - column_keys, level_keys: translation key prefixes of the column and of the level names
+#}
+<table class="progress-table">
+    <thead>
+        <tr>
+            <th scope="col"><span class="visually-hidden">{{ 'player.progress.level'|trans }}</span></th>
+            {% for round in grid[0].rounds %}
+                <th scope="col">{{ (column_keys ~ round[column].key)|trans }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in grid %}
+            <tr>
+                <th scope="row">{{ (level_keys ~ row.level.key ~ '.name')|trans }}</th>
+                {% for round in row.rounds %}
+                    {% set result = progress[round.stored] ?? null %}
+                    <td>
+                        {% if result is null %}
+                            <span aria-hidden="true">–</span>
+                            <span class="visually-hidden">{{ 'player.progress.not_yet'|trans }}</span>
+                        {% else %}
+                            {{ include('player/_progress_badge.html.twig', {result: result, compact: true}) }}
+                        {% endif %}
+                    </td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

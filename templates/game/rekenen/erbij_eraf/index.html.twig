@@ -21,32 +21,26 @@
     <h1>{{ 'game.rekenen.erbij_eraf.name'|trans }}</h1>
 
     <h2 class="picker-step">{{ 'game.rekenen.erbij_eraf.choose_operation'|trans }}</h2>
-    <ul class="operation-switch">
-        {% for choice in operations %}
-            <li>
-                <a class="operation-switch__link" href="{{ path('app_game_rekenen_erbij_eraf', {soort: choice.value}) }}"
-                    {%- if choice == operation %} aria-current="page"{% endif %}>
-                    <span class="operation-switch__symbol" aria-hidden="true">{{ symbols[choice.value] }}</span>
-                    {{ ('game.rekenen.erbij_eraf.operations.' ~ choice.key)|trans }}
-                </a>
-            </li>
-        {% endfor %}
-    </ul>
+    {{ include('game/_choice_switch.html.twig', {
+        choices: operations|map(choice => {
+            url: path('app_game_rekenen_erbij_eraf', {soort: choice.value}),
+            label: ('game.rekenen.erbij_eraf.operations.' ~ choice.key)|trans,
+            current: choice == operation,
+            symbol: symbols[choice.value],
+        }),
+    }, with_context = false) }}
 
     <h2 class="picker-step">{{ 'game.rekenen.erbij_eraf.choose_level'|trans }}</h2>
     <ul class="table-picker table-picker--levels">
         {% for row in grid %}
             {% set round = row.rounds|filter(round => round.operation == operation)|first %}
             {% set level_key = 'game.rekenen.erbij_eraf.levels.' ~ row.level.key %}
-            <li>
-                <a class="table-picker__link" href="{{ path('app_game_rekenen_erbij_eraf_spel', {level: row.level.slug, operation: operation.value}) }}">
-                    <span class="table-picker__label">{{ (level_key ~ '.name')|trans }}</span>
-                    <span class="table-picker__note">{{ (level_key ~ '.' ~ example_keys[operation.value])|trans }}</span>
-                    {% if progress[round.stored] is defined %}
-                        {{ include('player/_progress_badge.html.twig', {result: progress[round.stored], compact: true}) }}
-                    {% endif %}
-                </a>
-            </li>
+            {{ include('game/_picker_tile.html.twig', {
+                url: path('app_game_rekenen_erbij_eraf_spel', {level: row.level.slug, operation: operation.value}),
+                label: (level_key ~ '.name')|trans,
+                note: (level_key ~ '.' ~ example_keys[operation.value])|trans,
+                result: progress[round.stored] ?? null,
+            }, with_context = false) }}
         {% endfor %}
     </ul>
 

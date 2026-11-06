@@ -1,0 +1,18 @@
+{#
+    One tile of a picker (a table, a mix, a level): a link with a label, an optional note and the
+    badge of the best result. Include it with with_context = false. Variables:
+    - url, label
+    - note: optional second line
+    - result: optional LevelProgress, shown as a compact badge
+#}
+<li>
+    <a class="table-picker__link" href="{{ url }}">
+        <span class="table-picker__label">{{ label }}</span>
+        {% if note is defined and note %}
+            <span class="table-picker__note">{{ note }}</span>
+        {% endif %}
+        {% if result is defined and result %}
+            {{ include('player/_progress_badge.html.twig', {result: result, compact: true}) }}
+        {% endif %}
+    </a>
+</li>

@@ -20,31 +20,25 @@
     <p>{{ 'game.taal.dictee.picker_intro'|trans }}</p>
 
     <h2 class="picker-step">{{ 'game.taal.dictee.choose_group'|trans }}</h2>
-    <ul class="operation-switch">
-        {% for choice in groups %}
-            <li>
-                <a class="operation-switch__link" href="{{ path('app_game_taal_dictee', {groep: choice.value}) }}"
-                    {%- if choice == group %} aria-current="page"{% endif %}>
-                    {{ ('game.taal.dictee.groups.' ~ choice.key)|trans }}
-                </a>
-            </li>
-        {% endfor %}
-    </ul>
+    {{ include('game/_choice_switch.html.twig', {
+        choices: groups|map(choice => {
+            url: path('app_game_taal_dictee', {groep: choice.value}),
+            label: ('game.taal.dictee.groups.' ~ choice.key)|trans,
+            current: choice == group,
+        }),
+    }, with_context = false) }}
 
     <h2 class="picker-step">{{ 'game.taal.dictee.choose_level'|trans }}</h2>
     <ul class="table-picker table-picker--levels table-picker--pairs">
         {% for row in grid %}
             {% set round = row.rounds|filter(round => round.group == group)|first %}
             {% set level_key = 'game.taal.dictee.levels.' ~ row.level.key %}
-            <li>
-                <a class="table-picker__link" href="{{ path('app_game_taal_dictee_spel', {group: group.slug, level: row.level.slug}) }}">
-                    <span class="table-picker__label">{{ (level_key ~ '.name')|trans }}</span>
-                    <span class="table-picker__note">{{ (level_key ~ '.description')|trans }}</span>
-                    {% if progress[round.stored] is defined %}
-                        {{ include('player/_progress_badge.html.twig', {result: progress[round.stored], compact: true}) }}
-                    {% endif %}
-                </a>
-            </li>
+            {{ include('game/_picker_tile.html.twig', {
+                url: path('app_game_taal_dictee_spel', {group: group.slug, level: row.level.slug}),
+                label: (level_key ~ '.name')|trans,
+                note: (level_key ~ '.description')|trans,
+                result: progress[round.stored] ?? null,
+            }, with_context = false) }}
         {% endfor %}
     </ul>
 

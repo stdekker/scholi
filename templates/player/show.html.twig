@@ -65,67 +65,25 @@
 
     <section class="player-card" id="erbij-eraf">
         <h2>{{ 'player.progress.erbij_eraf_title'|trans }}</h2>
-        <table class="progress-table">
-            <thead>
-                <tr>
-                    <th scope="col"><span class="visually-hidden">{{ 'player.progress.level'|trans }}</span></th>
-                    {% for round in erbij_eraf_grid[0].rounds %}
-                        <th scope="col">{{ ('game.rekenen.erbij_eraf.operations.' ~ round.operation.key)|trans }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in erbij_eraf_grid %}
-                    <tr>
-                        <th scope="row">{{ ('game.rekenen.erbij_eraf.levels.' ~ row.level.key ~ '.name')|trans }}</th>
-                        {% for round in row.rounds %}
-                            {% set result = erbij_eraf_progress[round.stored] ?? null %}
-                            <td>
-                                {% if result is null %}
-                                    <span aria-hidden="true">–</span>
-                                    <span class="visually-hidden">{{ 'player.progress.not_yet'|trans }}</span>
-                                {% else %}
-                                    {{ include('player/_progress_badge.html.twig', {result: result, compact: true}) }}
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {{ include('player/_level_table.html.twig', {
+            grid: erbij_eraf_grid,
+            progress: erbij_eraf_progress,
+            column: 'operation',
+            column_keys: 'game.rekenen.erbij_eraf.operations.',
+            level_keys: 'game.rekenen.erbij_eraf.levels.',
+        }, with_context = false) }}
         <a class="action-button" href="{{ path('app_game_rekenen_erbij_eraf') }}">{{ 'player.progress.erbij_eraf_play'|trans }}</a>
     </section>
 
     <section class="player-card" id="dictee">
         <h2>{{ 'player.progress.dictee_title'|trans }}</h2>
-        <table class="progress-table">
-            <thead>
-                <tr>
-                    <th scope="col"><span class="visually-hidden">{{ 'player.progress.level'|trans }}</span></th>
-                    {% for round in dictee_grid[0].rounds %}
-                        <th scope="col">{{ ('game.taal.dictee.groups.' ~ round.group.key)|trans }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in dictee_grid %}
-                    <tr>
-                        <th scope="row">{{ ('game.taal.dictee.levels.' ~ row.level.key ~ '.name')|trans }}</th>
-                        {% for round in row.rounds %}
-                            {% set result = dictee_progress[round.stored] ?? null %}
-                            <td>
-                                {% if result is null %}
-                                    <span aria-hidden="true">–</span>
-                                    <span class="visually-hidden">{{ 'player.progress.not_yet'|trans }}</span>
-                                {% else %}
-                                    {{ include('player/_progress_badge.html.twig', {result: result, compact: true}) }}
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {{ include('player/_level_table.html.twig', {
+            grid: dictee_grid,
+            progress: dictee_progress,
+            column: 'group',
+            column_keys: 'game.taal.dictee.groups.',
+            level_keys: 'game.taal.dictee.levels.',
+        }, with_context = false) }}
         <a class="action-button" href="{{ path('app_game_taal_dictee') }}">{{ 'player.progress.dictee_play'|trans }}</a>
     </section>
 
