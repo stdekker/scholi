@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { postJson } from '../games/shared/api.js';
 import { format, formatDuration, formatSum, formatTime } from '../games/shared/format.js';
 import { appendDigit, removeLastDigit } from '../games/shared/input.js';
 import {
@@ -20,6 +21,7 @@ import {
     startTimer,
     timeLeft,
 } from '../games/shared/round.js';
+import { CONFETTI_MS, createConfetti } from './bubble_game/confetti.js';
 
 const BUBBLE_HUES = [200, 280, 330, 30, 150, 50];
 // Fallback for when no animationend fires (e.g. prefers-reduced-motion).
@@ -31,9 +33,6 @@ const GO_VISIBLE_MS = 800;
 const APPEAR_STAGGER_MS = 40;
 // Opens a bubble by itself when none has been opened for this long.
 const AUTO_OPEN_DELAY_MS = 3000;
-// Confetti of a popped bubble: number of pieces, and when they are removed (after the animation).
-const CONFETTI_PIECES = 32;
-const CONFETTI_MS = 700;
 
 /*
  * Base class of the bubble games (tafels, erbij en eraf, dictee): one bubble per task (a sum, or
@@ -357,11 +356,7 @@ export default class BubbleGameController extends Controller {
      * @param {{keepStatus?: boolean}} options keepStatus: leave the feedback ("Goed zo!") in place
      */
     activate(bubble, { keepStatus = false } = {}) {
-        if (
-            bubble === this.activeBubble ||
-            bubble.classList.contains('bubble--popping') ||
-            bubble.classList.contains('bubble--frozen')
-        ) {
+        if (bubble === this.activeBubble || !this.isOpenable(bubble)) {
             this.answerInput()?.focus();
             return;
         }
@@ -453,18 +448,23 @@ export default class BubbleGameController extends Controller {
         input.focus();
     }
 
-    bubbleToActivate() {
-        const available = (bubble) =>
-            bubble &&
+    /** Whether a bubble can still be answered: it is neither popping nor frozen. */
+    isOpenable(bubble) {
+        return (
+            Boolean(bubble) &&
             !bubble.classList.contains('bubble--popping') &&
-            !bubble.classList.contains('bubble--frozen');
+            !bubble.classList.contains('bubble--frozen')
+        );
+    }
+
+    bubbleToActivate() {
         const focused = document.activeElement?.closest('.bubble');
 
-        if (available(focused) && this.fieldTarget.contains(focused)) {
+        if (this.isOpenable(focused) && this.fieldTarget.contains(focused)) {
             return focused;
         }
 
-        return [...this.fieldTarget.children].find(available) ?? null;
+        return [...this.fieldTarget.children].find((bubble) => this.isOpenable(bubble)) ?? null;
     }
 
     /** Keeps physical-keyboard input to what the game accepts (digits, or letters in dictee). */
@@ -536,28 +536,9 @@ export default class BubbleGameController extends Controller {
      * @param {HTMLElement} bubble
      */
     burst(bubble) {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const confetti = createConfetti(bubble);
+        if (!confetti) {
             return;
-        }
-
-        const { left, top, width, height } = bubble.getBoundingClientRect();
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.setAttribute('aria-hidden', 'true');
-        confetti.style.left = `${left + width / 2}px`;
-        confetti.style.top = `${top + height / 2}px`;
-        confetti.style.setProperty('--bubble-hue', bubble.style.getPropertyValue('--bubble-hue'));
-
-        for (let i = 0; i < CONFETTI_PIECES; i++) {
-            const piece = document.createElement('span');
-            const angle = ((i + Math.random() * 0.5) / CONFETTI_PIECES) * 2 * Math.PI;
-            const distance = width * (0.8 + Math.random() * 0.9);
-            piece.className = 'confetti__piece';
-            piece.style.setProperty('--x', `${(Math.cos(angle) * distance).toFixed(1)}px`);
-            piece.style.setProperty('--y', `${(Math.sin(angle) * distance).toFixed(1)}px`);
-            piece.style.setProperty('--turn', `${Math.round(Math.random() * 720 - 360)}deg`);
-            piece.style.setProperty('--lightness', `${45 + Math.round(Math.random() * 30)}%`);
-            confetti.append(piece);
         }
 
         this.element.append(confetti);
@@ -615,10 +596,7 @@ export default class BubbleGameController extends Controller {
         const bubbles = [...this.fieldTarget.children];
         const start = previous ? bubbles.indexOf(previous) + 1 : 0;
         const next = [...bubbles.slice(start), ...bubbles.slice(0, start)].find(
-            (bubble) =>
-                bubble !== previous &&
-                !bubble.classList.contains('bubble--popping') &&
-                !bubble.classList.contains('bubble--frozen'),
+            (bubble) => bubble !== previous && this.isOpenable(bubble),
         );
         if (next) {
             this.activate(next, { keepStatus: true });
@@ -683,13 +661,7 @@ export default class BubbleGameController extends Controller {
         }
 
         try {
-            await fetch(this.practiceUrlValue, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({ seconds }),
-                credentials: 'same-origin',
-                keepalive: true,
-            });
+            await postJson(this.practiceUrlValue, { seconds });
         } catch {
             // Practice time is a bonus: a failure stays silent and never blocks the result.
         }
@@ -720,16 +692,7 @@ export default class BubbleGameController extends Controller {
         }
 
         try {
-            const response = await fetch(this.saveUrlValue, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify({ durationMs }),
-                credentials: 'same-origin',
-                keepalive: true,
-            });
-            if (!response.ok) {
-                throw new Error(`Saving the result failed: HTTP ${response.status}`);
-            }
+            await postJson(this.saveUrlValue, { durationMs });
         } catch {
             this.saveFailedMessageTargets.forEach((message) => (message.hidden = false));
         }

@@ -95,9 +95,10 @@ templates/player/                            # registration, player page, progre
 assets/app.js                                # AssetMapper entrypoint
 assets/controllers/<game>_controller.js      # Stimulus controllers: DOM wiring only, e.g. tafels_controller.js
 assets/controllers/bubble_game.js            # base class of the bubble games' controllers (not registered itself)
+assets/controllers/bubble_game/              # DOM helpers of that base class (e.g. confetti.js); no _controller suffix, so not registered
 assets/games/<subject>/<game>.js             # pure game logic (ES modules), e.g. rekenen/tafels.js, taal/dictee.js
 assets/audio/taal/dictee/<word>.mp3          # recordings of the dictee words (git-ignored, made by bin/generate-dictee-audio.mjs)
-assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js
+assets/games/shared/                         # pure helpers shared by games: round.js (round state, clock), input.js, format.js, random.js, api.js (postJson)
 assets/styles/app.css                        # global styles + design tokens (CSS custom properties)
 assets/images/                               # logo (header) and elephant mascot (popup; large one on the task selection screens, never in a game or the header)
 translations/messages.nl.yaml                # all user-facing text
